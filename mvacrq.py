@@ -44,45 +44,75 @@ BIG_FONT = pygame.font.SysFont("segoeui", scale_font(40))
 pygame.display.set_caption("VACR QUIZ")
 
 # ---------------------------------------------------------
-# LOAD HOTLIST.TXT
+# GLOBALS FOR HOTLIST DATA
 # ---------------------------------------------------------
-def load_hotlist():
-    aircraft_categories = {}
-    if not os.path.exists("hotlist.txt"):
-        print("ERROR: hotlist.txt not found.")
+aircraft_categories = {}
+aircraft_models = []
+aircraft_images = {}
+IMG_DIR = ""
+extensions = ["png", "jpg", "jpeg", "webp", "bmp", "gif"]
+
+# ---------------------------------------------------------
+# HOTLIST FOLDER DISCOVERY
+# ---------------------------------------------------------
+def load_hotlist_folders():
+    base = "hotlists"
+    if not os.path.exists(base):
+        os.makedirs(base)
+    folders = []
+    for name in os.listdir(base):
+        path = os.path.join(base, name)
+        if os.path.isdir(path) and os.path.exists(os.path.join(path, "hotlist.txt")):
+            folders.append(name)
+    folders.sort()
+    return folders
+
+# ---------------------------------------------------------
+# LOAD HOTLIST FROM SELECTED FOLDER
+# ---------------------------------------------------------
+def load_hotlist_from_folder(folder):
+    base = os.path.join("hotlists", folder)
+    hotlist_path = os.path.join(base, "hotlist.txt")
+    imgs_path = os.path.join(base, "imgs")
+
+    if not os.path.exists(hotlist_path):
+        print(f"ERROR: hotlist.txt missing in hotlists/{folder}/")
         pygame.quit()
         sys.exit()
 
-    with open("hotlist.txt", "r", encoding="utf-8") as f:
+    if not os.path.exists(imgs_path):
+        print(f"ERROR: imgs/ folder missing in hotlists/{folder}/")
+        pygame.quit()
+        sys.exit()
+
+    aircraft_categories = {}
+    with open(hotlist_path, "r", encoding="utf-8") as f:
         for line in f:
             line = line.strip()
             if not line or "|" not in line:
                 continue
-
             name, category = line.split("|", 1)
             name = name.strip()
             category = category.strip().capitalize()
-
             aircraft_categories[name] = category
 
-    return aircraft_categories
-
-aircraft_categories = load_hotlist()
-aircraft_models = list(aircraft_categories.keys())
+    return aircraft_categories, imgs_path
 
 # ---------------------------------------------------------
-# LOAD IMAGES
+# LOAD IMAGES FOR CURRENT HOTLIST
 # ---------------------------------------------------------
-extensions = ["png", "jpg", "jpeg", "webp", "bmp", "gif"]
-aircraft_images = {}
+def load_images_for_hotlist():
+    global aircraft_images
+    aircraft_images = {}
 
-for model in aircraft_models:
-    safe = model.replace(" ", "_").replace("/", "_").lower()
-    files = []
-    for ext in extensions:
-        files.extend(glob.glob(f"imgs/{safe}__*.{ext}"))
-    files.sort()
-    aircraft_images[model] = files
+    for model in aircraft_models:
+        safe = model.replace(" ", "_").replace("/", "_").lower()
+        files = []
+        for ext in extensions:
+            pattern = os.path.join(IMG_DIR, f"{safe}__*.{ext}")
+            files.extend(glob.glob(pattern))
+        files.sort()
+        aircraft_images[model] = files
 
 # ---------------------------------------------------------
 # IMAGE SCALING (VACR LOGIC)
@@ -146,7 +176,7 @@ class Quiz:
 
         # Build question list
         self.questions = random.sample(aircraft_models, min(num_questions, len(aircraft_models)))
-        while len(self.questions) < num_questions:
+        while len(self.questions) < num_questions and aircraft_models:
             self.questions += random.sample(
                 aircraft_models,
                 min(len(aircraft_models), num_questions - len(self.questions))
@@ -175,13 +205,18 @@ class Quiz:
 
     # -----------------------------------------------------
     def next_question(self):
-        if self.index >= self.num_questions:
+        if self.index >= self.num_questions or not aircraft_models:
             self.state = "finished"
             return
 
         self.current_model = self.questions[self.index]
-        img_path = random.choice(aircraft_images[self.current_model])
-        self.current_image = load_image(img_path)
+
+        img_list = aircraft_images.get(self.current_model, [])
+        if img_list:
+            img_path = random.choice(img_list)
+            self.current_image = load_image(img_path)
+        else:
+            self.current_image = load_image(None)
 
         # MULTIPLE CHOICE LOGIC (same-type first, then random)
         category = aircraft_categories[self.current_model]
@@ -193,12 +228,16 @@ class Quiz:
         wrong = []
 
         take_same = min(len(same_cat), wrong_needed)
-        wrong.extend(random.sample(same_cat, take_same))
+        if take_same > 0:
+            wrong.extend(random.sample(same_cat, take_same))
 
         remaining = wrong_needed - take_same
         if remaining > 0:
             pool = [m for m in all_others if m not in wrong]
-            wrong.extend(random.sample(pool, remaining))
+            if len(pool) >= remaining:
+                wrong.extend(random.sample(pool, remaining))
+            else:
+                wrong.extend(pool)
 
         self.choices = wrong + [self.current_model]
         random.shuffle(self.choices)
@@ -259,7 +298,10 @@ class Quiz:
                                     rect.y + (rect.height - label.get_height()) // 2))
 
         elif self.state == "finished":
-            percent = (self.score / self.num_questions) * 100
+            if self.num_questions > 0:
+                percent = (self.score / self.num_questions) * 100
+            else:
+                percent = 0.0
 
             final = BIG_FONT.render(f"Score: {self.score}/{self.num_questions}  ({percent:.1f}%)", True, TEXT)
             screen.blit(final, (center_x(final.get_width()), rel_y(0.05)))
@@ -355,9 +397,14 @@ class Quiz:
             self.scroll_offset += dy * self.scroll_speed
 
 # ---------------------------------------------------------
-# START MENU
+# START MENU (WITH HOTLIST SELECTION FIRST)
 # ---------------------------------------------------------
 def start_menu():
+    hotlists = load_hotlist_folders()
+    if not hotlists:
+        hotlists = ["default"]
+    hot_index = 0
+
     selected = 50
     difficulties = ["Easy", "Standard", "Warfighter", "AI"]
     diff_index = 1
@@ -366,21 +413,51 @@ def start_menu():
     while True:
         screen.fill(BG)
 
-        y = rel_y(0.12)
-        spacing = rel_y(0.06)
+        y = rel_y(0.04)      # start higher
+        spacing = rel_y(0.045)   # slightly tighter spacing
+
 
         title = BIG_FONT.render("Marty's Visual Aircraft Recognition Quiz", True, TEXT)
         screen.blit(title, (center_x(title.get_width()), y))
         y += title.get_height() + spacing
 
+        # HOTLIST SELECTION (FIRST)
+        hot_label = FONT.render("hotlist:", True, TEXT)
+        screen.blit(hot_label, (center_x(hot_label.get_width()), y))
+        y += hot_label.get_height() + rel_y(0.015)
+
+        btn_size = max(rel_y(0.06), 40)
+        gap = rel_x(0.015)
+
+        hot_text = BIG_FONT.render(hotlists[hot_index], True, ACCENT)
+        row_w = btn_size + gap + hot_text.get_width() + gap + btn_size
+        row_x = center_x(row_w)
+
+        hot_left = pygame.Rect(row_x, y, btn_size, btn_size)
+        hot_right = pygame.Rect(row_x + btn_size + gap + hot_text.get_width() + gap, y, btn_size, btn_size)
+
+        pygame.draw.rect(screen, PANEL, hot_left, border_radius=8)
+        pygame.draw.rect(screen, PANEL, hot_right, border_radius=8)
+
+        left_arrow = BIG_FONT.render("<", True, TEXT)
+        right_arrow = BIG_FONT.render(">", True, TEXT)
+
+        screen.blit(left_arrow, (hot_left.centerx - left_arrow.get_width() // 2,
+                                 hot_left.centery - left_arrow.get_height() // 2))
+        screen.blit(right_arrow, (hot_right.centerx - right_arrow.get_width() // 2,
+                                  hot_right.centery - right_arrow.get_height() // 2))
+
+        screen.blit(hot_text, (row_x + btn_size + gap,
+                               y + (btn_size - hot_text.get_height()) // 2))
+
+        y += btn_size + spacing
+
+        # NUMBER OF AIRCRAFT
         prompt = FONT.render("how many aircraft?", True, TEXT)
         screen.blit(prompt, (center_x(prompt.get_width()), y))
         y += prompt.get_height() + spacing
 
         num_text = BIG_FONT.render(str(selected), True, ACCENT)
-        btn_size = max(rel_y(0.06), 40)
-        gap = rel_x(0.015)
-
         row_w = btn_size + gap + num_text.get_width() + gap + btn_size
         row_x = center_x(row_w)
 
@@ -402,6 +479,7 @@ def start_menu():
 
         y += btn_size + spacing
 
+        # DIFFICULTY
         diff_text = BIG_FONT.render(difficulties[diff_index], True, ACCENT)
         arrow_size = btn_size
         row_w = arrow_size + gap + diff_text.get_width() + gap + arrow_size
@@ -413,9 +491,6 @@ def start_menu():
         pygame.draw.rect(screen, PANEL, diff_left, border_radius=8)
         pygame.draw.rect(screen, PANEL, diff_right, border_radius=8)
 
-        left_arrow = BIG_FONT.render("<", True, TEXT)
-        right_arrow = BIG_FONT.render(">", True, TEXT)
-
         screen.blit(left_arrow, (diff_left.centerx - left_arrow.get_width() // 2,
                                  diff_left.centery - left_arrow.get_height() // 2))
         screen.blit(right_arrow, (diff_right.centerx - right_arrow.get_width() // 2,
@@ -426,6 +501,7 @@ def start_menu():
 
         y += arrow_size + spacing
 
+        # NUMBER OF CHOICES
         choice_label = FONT.render("number of choices:", True, TEXT)
         screen.blit(choice_label, (center_x(choice_label.get_width()), y))
         y += choice_label.get_height() + rel_y(0.02)
@@ -450,6 +526,7 @@ def start_menu():
 
         y += arrow_size + spacing * 1.5
 
+        # START BUTTON
         start_w = max(rel_x(0.22), 250)
         start_h = max(rel_y(0.08), 60)
         start_btn = pygame.Rect(center_x(start_w), y, start_w, start_h)
@@ -471,7 +548,11 @@ def start_menu():
                 sys.exit()
 
             if event.type == pygame.MOUSEBUTTONDOWN:
-                if minus_rect.collidepoint(event.pos):
+                if hot_left.collidepoint(event.pos):
+                    hot_index = (hot_index - 1) % len(hotlists)
+                elif hot_right.collidepoint(event.pos):
+                    hot_index = (hot_index + 1) % len(hotlists)
+                elif minus_rect.collidepoint(event.pos):
                     selected = max(1, selected - 1)
                 elif plus_rect.collidepoint(event.pos):
                     selected = min(50, selected + 1)
@@ -484,13 +565,20 @@ def start_menu():
                 elif choice_right.collidepoint(event.pos):
                     num_choices = min(6, num_choices + 1)
                 elif start_btn.collidepoint(event.pos):
-                    return selected, difficulties[diff_index], num_choices
+                    return selected, difficulties[diff_index], num_choices, hotlists[hot_index]
 
 # ---------------------------------------------------------
 # MAIN LOOP WRAPPER
 # ---------------------------------------------------------
 def main():
-    num_q, difficulty, num_choices = start_menu()
+    global aircraft_categories, aircraft_models, IMG_DIR
+
+    num_q, difficulty, num_choices, chosen_hotlist = start_menu()
+
+    aircraft_categories, IMG_DIR = load_hotlist_from_folder(chosen_hotlist)
+    aircraft_models = list(aircraft_categories.keys())
+    load_images_for_hotlist()
+
     quiz = Quiz(num_questions=num_q, difficulty=difficulty, num_choices=num_choices)
     clock = pygame.time.Clock()
 
