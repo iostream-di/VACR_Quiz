@@ -1,10 +1,17 @@
 import os
+import sys
 import shutil
 import string
 from tkinterdnd2 import DND_FILES, TkinterDnD
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 from PIL import Image, ImageTk
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+LIBS_DIR = os.path.join(BASE_DIR, "libs")
+
+if LIBS_DIR not in sys.path:
+    sys.path.insert(0, LIBS_DIR)
 
 CURRENT_HOTLIST_FOLDER = os.path.basename(os.getcwd())
 HOTLIST_FILE = "hotlist.txt"
