@@ -138,7 +138,12 @@ class Quiz:
             self.image_time = 5
             self.choice_time = 5
 
-        self.questions = random.sample(aircraft_models, num_questions)
+        # Question list (simple for now; overflow logic can be added later)
+        self.questions = random.sample(aircraft_models, min(num_questions, len(aircraft_models)))
+        # If user asks for more than available, extend with random choices
+        while len(self.questions) < num_questions:
+            self.questions += random.sample(aircraft_models, min(len(aircraft_models), num_questions - len(self.questions)))
+
         self.index = 0
         self.score = 0
         self.wrong = 0
@@ -153,6 +158,10 @@ class Quiz:
         self.current_model = None
         self.current_image = None
         self.choices = []
+
+        # Scroll for results screen
+        self.scroll_offset = 0
+        self.scroll_speed = 40  # pixels per wheel tick
 
         self.next_question()
 
@@ -245,17 +254,48 @@ class Quiz:
             
             if percent < 100:
                 wrong_title = BIG_FONT.render("Incorrect Answers:", True, RED)
-                screen.blit(wrong_title, (center_x(wrong_title.get_width()), rel_y(0.15)))
             else:
                 wrong_title = BIG_FONT.render("Perfect Score!", True, BLACK)
-                screen.blit(wrong_title, (center_x(wrong_title.get_width()), rel_y(0.15)))
+            screen.blit(wrong_title, (center_x(wrong_title.get_width()), rel_y(0.15)))
 
-            y = rel_y(0.25)
+            # ---------------------------------------------------------
+            # SCROLLABLE INCORRECT LIST (SAFE, NO OVERLAP)
+            # ---------------------------------------------------------
+
+            # Define scroll window boundaries
+            viewport_top = rel_y(0.30)       # safely below score
+            viewport_bottom = rel_y(0.78)    # above buttons
+            viewport_height = viewport_bottom - viewport_top
+
+            # Create a clipping surface (viewport)
+            viewport = pygame.Surface((SCREEN_WIDTH, viewport_height))
+            viewport.fill(WHITE)
+
+            gap = rel_y(0.01)
+            line_height = FONT.get_height() + gap
+            total_height = len(self.incorrect_log) * line_height
+
+            # Clamp scroll offset
+            if total_height <= viewport_height:
+                self.scroll_offset = 0
+            else:
+                max_scroll = 0
+                min_scroll = viewport_height - total_height
+                self.scroll_offset = max(min_scroll, min(max_scroll, self.scroll_offset))
+
+            # Draw list INTO viewport
+            y = self.scroll_offset
             for model, chosen in self.incorrect_log:
                 correct = model
                 text = FONT.render(f"{chosen}  →  {correct}", True, BLACK)
-                screen.blit(text, (center_x(text.get_width()), y))
-                y += text.get_height() + rel_y(0.01)
+                viewport.blit(text, (center_x(text.get_width()), y))
+                y += line_height
+
+            # Blit viewport onto screen
+            screen.blit(viewport, (0, viewport_top))
+
+
+
 
             btn_w = max(rel_x(0.22), 250)
             btn_h = max(rel_y(0.08), 60)
@@ -303,6 +343,11 @@ class Quiz:
                 pygame.quit()
                 sys.exit()
 
+    # -----------------------------------------------------
+    def handle_scroll(self, dy):
+        if self.state == "finished":
+            self.scroll_offset += dy * self.scroll_speed
+
 # ---------------------------------------------------------
 # START MENU
 # ---------------------------------------------------------
@@ -310,7 +355,7 @@ def start_menu():
     selected = 50
     difficulties = ["Easy", "Standard", "Warfighter", "AI"]
     diff_index = 1
-    num_choices = 4  # NEW
+    num_choices = 4
 
     while True:
         screen.fill(WHITE)
@@ -326,7 +371,6 @@ def start_menu():
         screen.blit(prompt, (center_x(prompt.get_width()), y))
         y += prompt.get_height() + spacing
 
-        # Number of questions
         num_text = BIG_FONT.render(str(selected), True, BLUE)
         btn_size = max(rel_y(0.06), 40)
         gap = rel_x(0.015)
@@ -352,7 +396,6 @@ def start_menu():
 
         y += btn_size + spacing
 
-        # Difficulty selector
         diff_text = BIG_FONT.render(difficulties[diff_index], True, BLUE)
         arrow_size = btn_size
         row_w = arrow_size + gap + diff_text.get_width() + gap + arrow_size
@@ -377,9 +420,6 @@ def start_menu():
 
         y += arrow_size + spacing
 
-        # -------------------------------------------------
-        # NEW: Number of choices selector (4–6)
-        # -------------------------------------------------
         choice_label = FONT.render("number of choices:", True, BLACK)
         screen.blit(choice_label, (center_x(choice_label.get_width()), y))
         y += choice_label.get_height() + rel_y(0.02)
@@ -404,7 +444,6 @@ def start_menu():
 
         y += arrow_size + spacing * 1.5
 
-        # Start button
         start_w = max(rel_x(0.22), 250)
         start_h = max(rel_y(0.08), 60)
         start_btn = pygame.Rect(center_x(start_w), y, start_w, start_h)
@@ -416,7 +455,6 @@ def start_menu():
 
         pygame.display.flip()
 
-        # Events
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
@@ -462,6 +500,9 @@ def main():
 
             if event.type == pygame.MOUSEBUTTONDOWN:
                 quiz.handle_click(event.pos)
+
+            if event.type == pygame.MOUSEWHEEL:
+                quiz.handle_scroll(event.y)
 
         quiz.update()
         quiz.draw()
