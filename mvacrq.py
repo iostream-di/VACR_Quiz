@@ -176,9 +176,30 @@ class Quiz:
         self.current_image = load_image(img_path)
 
         category = aircraft_categories[self.current_model]
-        same_cat = [m for m in aircraft_models if aircraft_categories[m] == category and m != self.current_model]
+        # All aircraft except the correct one
+        all_others = [m for m in aircraft_models if m != self.current_model]
+
+        # Same-category aircraft except the correct one
+        same_cat = [m for m in all_others if aircraft_categories[m] == category]
 
         wrong_needed = self.num_choices - 1
+        wrong = []
+
+        # 1. Use all same-category aircraft (up to wrong_needed)
+        take_same = min(len(same_cat), wrong_needed)
+        wrong.extend(random.sample(same_cat, take_same))
+
+        # 2. Fill remaining slots with random aircraft from ANY category
+        remaining = wrong_needed - take_same
+        if remaining > 0:
+            # Exclude already-used wrong answers + the correct answer
+            pool = [m for m in all_others if m not in wrong]
+            wrong.extend(random.sample(pool, remaining))
+
+        # Final choices
+        self.choices = wrong + [self.current_model]
+        random.shuffle(self.choices)
+
 
         if len(same_cat) >= wrong_needed:
             wrong = random.sample(same_cat, wrong_needed)
