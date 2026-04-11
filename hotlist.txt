@@ -15,7 +15,6 @@ Alpha Jet | Fighter
 F-7P Airguard | Fighter
 J-10 Anihilator | Fighter
 JF-17 Thunder | Fighter
-
 C-160 Transall | Transport
 C-130 Hercules | Transport
 C-17 Globemaster | Transport
@@ -23,7 +22,6 @@ C-5 Galaxy | Transport
 AN-12 Cub | Transport
 C-23 Sherpa | Transport
 AN-2 Colt | Transport
-
 UH-60 Blackhawk | Helicopter
 MD-500 Defender | Helicopter
 CH-53 Sea Stallion | Helicopter
@@ -43,7 +41,6 @@ MI-2 Hoplite | Helicopter
 WG-13 Lynx | Helicopter
 KA-50 Hokum | Helicopter
 Harbin Z-9 | Helicopter
-
 Mirach 100 Meteor | UAV
 MQ-5B Hunter | UAV
 RQ-2 Pioneer | UAV
