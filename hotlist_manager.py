@@ -1,6 +1,7 @@
 import os
 import shutil
 import string
+from tkinterdnd2 import DND_FILES, TkinterDnD
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 from PIL import Image, ImageTk
@@ -104,7 +105,7 @@ class HotlistManagerApp:
 
         self.hotlist = load_hotlist()
         self.current_name = None
-        self.current_thumbnail = None  # store reference
+        self.current_thumbnail = None
 
         self.build_ui()
         self.refresh_aircraft_list()
@@ -128,8 +129,6 @@ class HotlistManagerApp:
         self.hotlist_label = ttk.Label(left_frame, text=f"Hotlist Loaded: {CURRENT_HOTLIST_FOLDER}")
         self.hotlist_label.pack(anchor="w", pady=(0, 5))
 
-
-
         # Left: Buttons
         btn_frame = ttk.Frame(left_frame)
         btn_frame.pack(fill="x", pady=(0, 5))
@@ -140,7 +139,7 @@ class HotlistManagerApp:
         ttk.Button(btn_frame, text="Export Set", command=self.export_set).pack(side="right", padx=2)
         ttk.Button(btn_frame, text="Import Set", command=self.import_set).pack(side="right", padx=2)
 
-        # Left: Aircraft list (NAME ONLY)
+        # Left: Aircraft list
         self.tree = ttk.Treeview(left_frame, columns=("Name",), show="headings", selectmode="browse")
         self.tree.heading("Name", text="Aircraft Name")
         self.tree.column("Name", width=250, anchor="w")
@@ -200,6 +199,10 @@ class HotlistManagerApp:
 
         self.img_listbox.bind("<<ListboxSelect>>", self.update_thumbnail)
 
+        # Drag & Drop support
+        self.img_listbox.drop_target_register(DND_FILES)
+        self.img_listbox.dnd_bind("<<Drop>>", self.handle_drop)
+
         # Right: Thumbnail preview
         self.preview_frame = ttk.Frame(img_split)
         img_split.add(self.preview_frame, weight=2)
@@ -213,6 +216,49 @@ class HotlistManagerApp:
 
         ttk.Button(img_btns, text="Add Image", command=self.add_image).pack(side="left", padx=2)
         ttk.Button(img_btns, text="Remove Image", command=self.remove_image).pack(side="left", padx=2)
+
+    # -----------------------------------------------------
+    # Drag & Drop Handler
+    # -----------------------------------------------------
+
+    def handle_drop(self, event):
+        if not self.current_name:
+            messagebox.showwarning("No selection", "Select an aircraft first.")
+            return
+
+        paths = self.root.splitlist(event.data)
+        valid_ext = (".png", ".jpg", ".jpeg", ".webp", ".bmp", ".gif")
+        paths = [p for p in paths if p.lower().endswith(valid_ext)]
+
+        if not paths:
+            return
+
+        sname = safe_name(self.current_name)
+
+        existing = [
+            f for f in os.listdir(IMG_DIR)
+            if f.lower().startswith(sname.lower() + "__")
+        ]
+
+        used_letters = set()
+        for f in existing:
+            suffix = f.split("__", 1)[1].split(".", 1)[0]
+            used_letters.add(suffix)
+
+        alphabet = list(string.ascii_lowercase)
+        next_letters = [c for c in alphabet if c not in used_letters]
+
+        for i, src in enumerate(paths):
+            if i >= len(next_letters):
+                messagebox.showerror("Error", "Ran out of letter suffixes.")
+                break
+
+            letter = next_letters[i]
+            ext = os.path.splitext(src)[1]
+            dst = os.path.join(IMG_DIR, f"{sname}__{letter}{ext}")
+            shutil.copy(src, dst)
+
+        self.refresh_images()
 
     # -----------------------------------------------------
     # Aircraft List
@@ -274,7 +320,6 @@ class HotlistManagerApp:
         try:
             img = Image.open(path)
 
-            # Auto-scale to preview frame size
             self.preview_frame.update_idletasks()
             frame_w = self.preview_frame.winfo_width()
             frame_h = self.preview_frame.winfo_height()
@@ -338,7 +383,7 @@ class HotlistManagerApp:
 
         sname = safe_name(name)
         for file in os.listdir(IMG_DIR):
-            if file.startswith(sname + "__"):
+            if file.lower().startswith(sname.lower() + "__"):
                 os.remove(os.path.join(IMG_DIR, file))
 
         del self.hotlist[name]
@@ -365,13 +410,12 @@ class HotlistManagerApp:
             messagebox.showerror("Error", "Another aircraft with that name already exists.")
             return
 
-        # Rename images if name changed
         if new_name != old_name:
             old_safe = safe_name(old_name)
             new_safe = safe_name(new_name)
 
             for file in os.listdir(IMG_DIR):
-                if file.startswith(old_safe + "__"):
+                if file.lower().startswith(old_safe.lower() + "__"):
                     old_path = os.path.join(IMG_DIR, file)
                     new_file = file.replace(old_safe, new_safe, 1)
                     new_path = os.path.join(IMG_DIR, new_file)
@@ -407,10 +451,9 @@ class HotlistManagerApp:
 
         sname = safe_name(self.current_name)
 
-        # Find used letter suffixes
         existing = [
             f for f in os.listdir(IMG_DIR)
-            if f.startswith(sname + "__")
+            if f.lower().startswith(sname.lower() + "__")
         ]
 
         used_letters = set()
@@ -459,14 +502,12 @@ class HotlistManagerApp:
         if not target_dir:
             return
 
-        # Ask user for folder name
         folder_name = self.simple_prompt("Export Hotlist", "Enter a name for this hotlist:", default=CURRENT_HOTLIST_FOLDER)
         if not folder_name:
             return
 
         export_root = os.path.join(target_dir, folder_name)
 
-        # Overwrite check
         if os.path.exists(export_root):
             if not messagebox.askyesno("Overwrite", f"{folder_name} already exists. Overwrite?"):
                 return
@@ -475,23 +516,18 @@ class HotlistManagerApp:
         os.makedirs(export_root, exist_ok=True)
         os.makedirs(os.path.join(export_root, "imgs"), exist_ok=True)
 
-        # Write hotlist
         with open(os.path.join(export_root, "hotlist.txt"), "w", encoding="utf-8") as f:
             for name, cat in self.hotlist.items():
                 f.write(f"{name} | {cat}\n")
 
-        # Copy images
         for file in os.listdir(IMG_DIR):
             shutil.copy(os.path.join(IMG_DIR, file),
                         os.path.join(export_root, "imgs", file))
 
-        # Update label + global folder name
         CURRENT_HOTLIST_FOLDER = folder_name
         self.hotlist_label.config(text=f"Hotlist Loaded: {folder_name}")
 
         messagebox.showinfo("Export Complete", f"Exported to:\n{export_root}")
-
-
 
     def import_set(self):
         source_dir = filedialog.askdirectory(title="Select folder containing hotlist.txt and imgs/")
@@ -505,7 +541,6 @@ class HotlistManagerApp:
             messagebox.showerror("Error", "Folder must contain hotlist.txt and imgs/")
             return
 
-        # Merge or replace
         if self.hotlist:
             merge = messagebox.askyesno(
                 "Merge or Replace",
@@ -529,17 +564,16 @@ class HotlistManagerApp:
 
         save_hotlist(self.hotlist)
 
-        # Copy images
         for file in os.listdir(imgs_path):
             shutil.copy(os.path.join(imgs_path, file),
                         os.path.join(IMG_DIR, file))
 
         self.refresh_aircraft_list()
-        messagebox.showinfo("Import Complete", "Hotlist imported.")
+
         imported_folder_name = os.path.basename(source_dir)
         self.hotlist_label.config(text=f"Hotlist Loaded: {imported_folder_name}")
 
-
+        messagebox.showinfo("Import Complete", "Hotlist imported.")
 
     # -----------------------------------------------------
     # Prompt Utility
@@ -579,6 +613,6 @@ class HotlistManagerApp:
 # ---------------------------------------------------------
 
 if __name__ == "__main__":
-    root = tk.Tk()
+    root = TkinterDnD.Tk()
     app = HotlistManagerApp(root)
     root.mainloop()
