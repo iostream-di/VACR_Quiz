@@ -1,5 +1,5 @@
 # ---------------------------------------------------------
-# VACR QUIZ — SILENT MODE ONLY
+# VACR QUIZ — SILENT MODE ONLY (Windows 11 Dark Theme)
 # by Marty Mayhem
 # ---------------------------------------------------------
 
@@ -18,11 +18,17 @@ pygame.init()
 screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
 SCREEN_WIDTH, SCREEN_HEIGHT = screen.get_size()
 
-WHITE = (255, 255, 255)
-BLACK = (0, 0, 0)
-GRAY = (200, 200, 200)
-BLUE = (0, 120, 255)
-RED = (200, 0, 0)
+# ---------------------------------------------------------
+# WINDOWS 11 DARK THEME COLORS
+# ---------------------------------------------------------
+BG = (32, 32, 32)            # background
+PANEL = (45, 45, 45)         # buttons, panels
+PANEL_HOVER = (55, 55, 55)   # hover/selected (not used yet, but ready)
+TEXT = (230, 230, 230)       # main text
+TEXT_DIM = (180, 180, 180)   # secondary text
+ACCENT = (0, 120, 215)       # Windows 11 blue
+ACCENT_HOVER = (0, 150, 255)
+ERROR_RED = (232, 17, 35)
 
 def rel_x(f): return int(SCREEN_WIDTH * f)
 def rel_y(f): return int(SCREEN_HEIGHT * f)
@@ -32,8 +38,8 @@ def center_y(h): return (SCREEN_HEIGHT - h) // 2
 def scale_font(size):
     return int(size * (SCREEN_HEIGHT / 600))
 
-FONT = pygame.font.SysFont("arial", scale_font(28))
-BIG_FONT = pygame.font.SysFont("arial", scale_font(40))
+FONT = pygame.font.SysFont("segoeui", scale_font(28))
+BIG_FONT = pygame.font.SysFont("segoeui", scale_font(40))
 
 pygame.display.set_caption("VACR QUIZ")
 
@@ -55,7 +61,7 @@ def load_hotlist():
 
             name, category = line.split("|", 1)
             name = name.strip()
-            category = category.strip().capitalize()  # case-insensitive normalization
+            category = category.strip().capitalize()
 
             aircraft_categories[name] = category
 
@@ -111,8 +117,8 @@ def load_image(path):
         return scale_vacr(img)
     except:
         surf = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
-        surf.fill(GRAY)
-        text = FONT.render("no image, bro", True, BLACK)
+        surf.fill(PANEL)
+        text = FONT.render("no image, bro", True, TEXT)
         surf.blit(text, (center_x(text.get_width()), center_y(text.get_height())))
         return surf
 
@@ -138,11 +144,13 @@ class Quiz:
             self.image_time = 5
             self.choice_time = 5
 
-        # Question list (simple for now; overflow logic can be added later)
+        # Build question list
         self.questions = random.sample(aircraft_models, min(num_questions, len(aircraft_models)))
-        # If user asks for more than available, extend with random choices
         while len(self.questions) < num_questions:
-            self.questions += random.sample(aircraft_models, min(len(aircraft_models), num_questions - len(self.questions)))
+            self.questions += random.sample(
+                aircraft_models,
+                min(len(aircraft_models), num_questions - len(self.questions))
+            )
 
         self.index = 0
         self.score = 0
@@ -161,7 +169,7 @@ class Quiz:
 
         # Scroll for results screen
         self.scroll_offset = 0
-        self.scroll_speed = 40  # pixels per wheel tick
+        self.scroll_speed = 40
 
         self.next_question()
 
@@ -175,39 +183,22 @@ class Quiz:
         img_path = random.choice(aircraft_images[self.current_model])
         self.current_image = load_image(img_path)
 
+        # MULTIPLE CHOICE LOGIC (same-type first, then random)
         category = aircraft_categories[self.current_model]
-        # All aircraft except the correct one
-        all_others = [m for m in aircraft_models if m != self.current_model]
 
-        # Same-category aircraft except the correct one
+        all_others = [m for m in aircraft_models if m != self.current_model]
         same_cat = [m for m in all_others if aircraft_categories[m] == category]
 
         wrong_needed = self.num_choices - 1
         wrong = []
 
-        # 1. Use all same-category aircraft (up to wrong_needed)
         take_same = min(len(same_cat), wrong_needed)
         wrong.extend(random.sample(same_cat, take_same))
 
-        # 2. Fill remaining slots with random aircraft from ANY category
         remaining = wrong_needed - take_same
         if remaining > 0:
-            # Exclude already-used wrong answers + the correct answer
             pool = [m for m in all_others if m not in wrong]
             wrong.extend(random.sample(pool, remaining))
-
-        # Final choices
-        self.choices = wrong + [self.current_model]
-        random.shuffle(self.choices)
-
-
-        if len(same_cat) >= wrong_needed:
-            wrong = random.sample(same_cat, wrong_needed)
-        else:
-            wrong = same_cat + random.sample(
-                [m for m in aircraft_models if aircraft_categories[m] != category],
-                wrong_needed - len(same_cat)
-            )
 
         self.choices = wrong + [self.current_model]
         random.shuffle(self.choices)
@@ -240,14 +231,14 @@ class Quiz:
 
     # -----------------------------------------------------
     def draw(self):
-        screen.fill(WHITE)
+        screen.fill(BG)
 
         if self.state == "show_image":
             img = self.current_image
             screen.blit(img, (center_x(img.get_width()), center_y(img.get_height())))
 
         elif self.state == "show_choices":
-            title = BIG_FONT.render("which one was it?", True, BLACK)
+            title = BIG_FONT.render("which one was it?", True, TEXT)
             screen.blit(title, (center_x(title.get_width()), rel_y(0.05)))
 
             btn_h = rel_y(0.07)
@@ -260,43 +251,39 @@ class Quiz:
                 x = center_x(int(btn_w))
                 rect = pygame.Rect(x, y, int(btn_w), int(btn_h))
 
-                color = BLUE if self.selected_choice == choice else GRAY
+                color = ACCENT if self.selected_choice == choice else PANEL
 
                 pygame.draw.rect(screen, color, rect, border_radius=8)
-                label = FONT.render(choice, True, BLACK)
+                label = FONT.render(choice, True, TEXT)
                 screen.blit(label, (rect.x + (rect.width - label.get_width()) // 2,
                                     rect.y + (rect.height - label.get_height()) // 2))
 
         elif self.state == "finished":
             percent = (self.score / self.num_questions) * 100
 
-            final = BIG_FONT.render(f"Score: {self.score}/{self.num_questions}  ({percent:.1f}%)", True, BLACK)
+            final = BIG_FONT.render(f"Score: {self.score}/{self.num_questions}  ({percent:.1f}%)", True, TEXT)
             screen.blit(final, (center_x(final.get_width()), rel_y(0.05)))
             
             if percent < 100:
-                wrong_title = BIG_FONT.render("Incorrect Answers:", True, RED)
+                wrong_title = BIG_FONT.render("Incorrect Answers:", True, ERROR_RED)
             else:
-                wrong_title = BIG_FONT.render("Perfect Score!", True, BLACK)
+                wrong_title = BIG_FONT.render("Perfect Score!", True, TEXT)
             screen.blit(wrong_title, (center_x(wrong_title.get_width()), rel_y(0.15)))
 
             # ---------------------------------------------------------
-            # SCROLLABLE INCORRECT LIST (SAFE, NO OVERLAP)
+            # SCROLLABLE INCORRECT LIST (CLIPPED VIEWPORT)
             # ---------------------------------------------------------
-
-            # Define scroll window boundaries
-            viewport_top = rel_y(0.30)       # safely below score
-            viewport_bottom = rel_y(0.78)    # above buttons
+            viewport_top = rel_y(0.30)
+            viewport_bottom = rel_y(0.78)
             viewport_height = viewport_bottom - viewport_top
 
-            # Create a clipping surface (viewport)
             viewport = pygame.Surface((SCREEN_WIDTH, viewport_height))
-            viewport.fill(WHITE)
+            viewport.fill(BG)
 
             gap = rel_y(0.01)
             line_height = FONT.get_height() + gap
             total_height = len(self.incorrect_log) * line_height
 
-            # Clamp scroll offset
             if total_height <= viewport_height:
                 self.scroll_offset = 0
             else:
@@ -304,31 +291,29 @@ class Quiz:
                 min_scroll = viewport_height - total_height
                 self.scroll_offset = max(min_scroll, min(max_scroll, self.scroll_offset))
 
-            # Draw list INTO viewport
             y = self.scroll_offset
             for model, chosen in self.incorrect_log:
                 correct = model
-                text = FONT.render(f"{chosen}  →  {correct}", True, BLACK)
+                text = FONT.render(f"{chosen}  →  {correct}", True, TEXT)
                 viewport.blit(text, (center_x(text.get_width()), y))
                 y += line_height
 
-            # Blit viewport onto screen
             screen.blit(viewport, (0, viewport_top))
 
-
-
-
+            # ---------------------------------------------------------
+            # BUTTONS
+            # ---------------------------------------------------------
             btn_w = max(rel_x(0.22), 250)
             btn_h = max(rel_y(0.08), 60)
 
             play_btn = pygame.Rect(center_x(btn_w), rel_y(0.80), btn_w, btn_h)
             quit_btn = pygame.Rect(center_x(btn_w), rel_y(0.90), btn_w, btn_h)
 
-            pygame.draw.rect(screen, BLUE, play_btn, border_radius=10)
-            pygame.draw.rect(screen, RED, quit_btn, border_radius=10)
+            pygame.draw.rect(screen, ACCENT, play_btn, border_radius=10)
+            pygame.draw.rect(screen, ERROR_RED, quit_btn, border_radius=10)
 
-            play_label = FONT.render("main menu", True, WHITE)
-            quit_label = FONT.render("quit", True, WHITE)
+            play_label = FONT.render("main menu", True, TEXT)
+            quit_label = FONT.render("quit", True, TEXT)
 
             screen.blit(play_label, (play_btn.centerx - play_label.get_width() // 2,
                                      play_btn.centery - play_label.get_height() // 2))
@@ -379,20 +364,20 @@ def start_menu():
     num_choices = 4
 
     while True:
-        screen.fill(WHITE)
+        screen.fill(BG)
 
         y = rel_y(0.12)
         spacing = rel_y(0.06)
 
-        title = BIG_FONT.render("Marty's Visual Aircraft Recognition Quiz", True, BLACK)
+        title = BIG_FONT.render("Marty's Visual Aircraft Recognition Quiz", True, TEXT)
         screen.blit(title, (center_x(title.get_width()), y))
         y += title.get_height() + spacing
 
-        prompt = FONT.render("how many aircraft?", True, BLACK)
+        prompt = FONT.render("how many aircraft?", True, TEXT)
         screen.blit(prompt, (center_x(prompt.get_width()), y))
         y += prompt.get_height() + spacing
 
-        num_text = BIG_FONT.render(str(selected), True, BLUE)
+        num_text = BIG_FONT.render(str(selected), True, ACCENT)
         btn_size = max(rel_y(0.06), 40)
         gap = rel_x(0.015)
 
@@ -402,13 +387,13 @@ def start_menu():
         minus_rect = pygame.Rect(row_x, y, btn_size, btn_size)
         plus_rect = pygame.Rect(row_x + btn_size + gap + num_text.get_width() + gap, y, btn_size, btn_size)
 
-        pygame.draw.rect(screen, GRAY, minus_rect, border_radius=8)
-        pygame.draw.rect(screen, GRAY, plus_rect, border_radius=8)
+        pygame.draw.rect(screen, PANEL, minus_rect, border_radius=8)
+        pygame.draw.rect(screen, PANEL, plus_rect, border_radius=8)
 
         screen.blit(num_text, (row_x + btn_size + gap, y + (btn_size - num_text.get_height()) // 2))
 
-        minus_label = BIG_FONT.render("-", True, BLACK)
-        plus_label = BIG_FONT.render("+", True, BLACK)
+        minus_label = BIG_FONT.render("-", True, TEXT)
+        plus_label = BIG_FONT.render("+", True, TEXT)
 
         screen.blit(minus_label, (minus_rect.centerx - minus_label.get_width() // 2,
                                   minus_rect.centery - minus_label.get_height() // 2))
@@ -417,7 +402,7 @@ def start_menu():
 
         y += btn_size + spacing
 
-        diff_text = BIG_FONT.render(difficulties[diff_index], True, BLUE)
+        diff_text = BIG_FONT.render(difficulties[diff_index], True, ACCENT)
         arrow_size = btn_size
         row_w = arrow_size + gap + diff_text.get_width() + gap + arrow_size
         row_x = center_x(row_w)
@@ -425,11 +410,11 @@ def start_menu():
         diff_left = pygame.Rect(row_x, y, arrow_size, arrow_size)
         diff_right = pygame.Rect(row_x + arrow_size + gap + diff_text.get_width() + gap, y, arrow_size, arrow_size)
 
-        pygame.draw.rect(screen, GRAY, diff_left, border_radius=8)
-        pygame.draw.rect(screen, GRAY, diff_right, border_radius=8)
+        pygame.draw.rect(screen, PANEL, diff_left, border_radius=8)
+        pygame.draw.rect(screen, PANEL, diff_right, border_radius=8)
 
-        left_arrow = BIG_FONT.render("<", True, BLACK)
-        right_arrow = BIG_FONT.render(">", True, BLACK)
+        left_arrow = BIG_FONT.render("<", True, TEXT)
+        right_arrow = BIG_FONT.render(">", True, TEXT)
 
         screen.blit(left_arrow, (diff_left.centerx - left_arrow.get_width() // 2,
                                  diff_left.centery - left_arrow.get_height() // 2))
@@ -441,19 +426,19 @@ def start_menu():
 
         y += arrow_size + spacing
 
-        choice_label = FONT.render("number of choices:", True, BLACK)
+        choice_label = FONT.render("number of choices:", True, TEXT)
         screen.blit(choice_label, (center_x(choice_label.get_width()), y))
         y += choice_label.get_height() + rel_y(0.02)
 
-        choice_text = BIG_FONT.render(str(num_choices), True, BLUE)
+        choice_text = BIG_FONT.render(str(num_choices), True, ACCENT)
         row_w = arrow_size + gap + choice_text.get_width() + gap + arrow_size
         row_x = center_x(row_w)
 
         choice_left = pygame.Rect(row_x, y, arrow_size, arrow_size)
         choice_right = pygame.Rect(row_x + arrow_size + gap + choice_text.get_width() + gap, y, arrow_size, arrow_size)
 
-        pygame.draw.rect(screen, GRAY, choice_left, border_radius=8)
-        pygame.draw.rect(screen, GRAY, choice_right, border_radius=8)
+        pygame.draw.rect(screen, PANEL, choice_left, border_radius=8)
+        pygame.draw.rect(screen, PANEL, choice_right, border_radius=8)
 
         screen.blit(left_arrow, (choice_left.centerx - left_arrow.get_width() // 2,
                                  choice_left.centery - left_arrow.get_height() // 2))
@@ -469,8 +454,8 @@ def start_menu():
         start_h = max(rel_y(0.08), 60)
         start_btn = pygame.Rect(center_x(start_w), y, start_w, start_h)
 
-        pygame.draw.rect(screen, BLUE, start_btn, border_radius=10)
-        start_label = FONT.render("send it!", True, WHITE)
+        pygame.draw.rect(screen, ACCENT, start_btn, border_radius=10)
+        start_label = FONT.render("send it!", True, TEXT)
         screen.blit(start_label, (start_btn.centerx - start_label.get_width() // 2,
                                   start_btn.centery - start_label.get_height() // 2))
 
