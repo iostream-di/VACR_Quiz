@@ -35,7 +35,7 @@ def scale_font(size):
 FONT = pygame.font.SysFont("arial", scale_font(28))
 BIG_FONT = pygame.font.SysFont("arial", scale_font(40))
 
-pygame.display.set_caption("VACR QUIZ — SILENT MODE")
+pygame.display.set_caption("VACR QUIZ")
 
 # ---------------------------------------------------------
 # LOAD HOTLIST.TXT
@@ -242,9 +242,13 @@ class Quiz:
 
             final = BIG_FONT.render(f"Score: {self.score}/{self.num_questions}  ({percent:.1f}%)", True, BLACK)
             screen.blit(final, (center_x(final.get_width()), rel_y(0.05)))
-
-            wrong_title = BIG_FONT.render("Incorrect Answers:", True, RED)
-            screen.blit(wrong_title, (center_x(wrong_title.get_width()), rel_y(0.15)))
+            
+            if percent < 100:
+                wrong_title = BIG_FONT.render("Incorrect Answers:", True, RED)
+                screen.blit(wrong_title, (center_x(wrong_title.get_width()), rel_y(0.15)))
+            else:
+                wrong_title = BIG_FONT.render("Perfect Score!", True, BLACK)
+                screen.blit(wrong_title, (center_x(wrong_title.get_width()), rel_y(0.15)))
 
             y = rel_y(0.25)
             for model, chosen in self.incorrect_log:
@@ -262,8 +266,8 @@ class Quiz:
             pygame.draw.rect(screen, BLUE, play_btn, border_radius=10)
             pygame.draw.rect(screen, RED, quit_btn, border_radius=10)
 
-            play_label = FONT.render("recock, bro", True, WHITE)
-            quit_label = FONT.render("no more, bro", True, WHITE)
+            play_label = FONT.render("main menu", True, WHITE)
+            quit_label = FONT.render("quit", True, WHITE)
 
             screen.blit(play_label, (play_btn.centerx - play_label.get_width() // 2,
                                      play_btn.centery - play_label.get_height() // 2))
@@ -314,11 +318,11 @@ def start_menu():
         y = rel_y(0.12)
         spacing = rel_y(0.06)
 
-        title = BIG_FONT.render("Marty's VACR Quiz (Silent Mode)", True, BLACK)
+        title = BIG_FONT.render("Marty's Visual Aircraft Recognition Quiz", True, BLACK)
         screen.blit(title, (center_x(title.get_width()), y))
         y += title.get_height() + spacing
 
-        prompt = FONT.render("how many aircraft you wanna try?", True, BLACK)
+        prompt = FONT.render("how many aircraft?", True, BLACK)
         screen.blit(prompt, (center_x(prompt.get_width()), y))
         y += prompt.get_height() + spacing
 
