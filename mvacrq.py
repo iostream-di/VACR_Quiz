@@ -2,7 +2,10 @@
 # VACR Quiz script v1.1 (by Marty Mayhem (dmartinez61789@gmail.com)
 #------------------------------
 
-import libs/pygame
+# Steam app?
+# flash app?
+
+import pygame
 import random
 import sys
 import time
@@ -116,9 +119,9 @@ aircraft_images = {}
 for model in aircraft_models:
     safe = model.replace(' ', '_').replace('/', '_').lower()
     aircraft_images[model] = [
-        f"{safe}__a.png",
-        f"{safe}__b.png",
-        f"{safe}__c.png"
+        f"imgs/{safe}__a.png",
+        f"imgs/{safe}__b.png",
+        f"imgs/{safe}__c.png"
     ]
 
 # -----------------------------
