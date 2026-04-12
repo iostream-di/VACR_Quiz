@@ -7,11 +7,15 @@ import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 from PIL import Image, ImageTk
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-LIBS_DIR = os.path.join(BASE_DIR, "libs")
+# Determine base path depending on whether running as EXE or script
+if getattr(sys, 'frozen', False):
+    base_path = sys._MEIPASS
+else:
+    base_path = os.path.dirname(os.path.abspath(__file__))
 
-if LIBS_DIR not in sys.path:
-    sys.path.insert(0, LIBS_DIR)
+libs_path = os.path.join(base_path, "libs")
+if libs_path not in sys.path:
+    sys.path.insert(0, libs_path)
 
 CURRENT_HOTLIST_FOLDER = os.path.basename(os.getcwd())
 HOTLIST_FILE = "hotlist.txt"
