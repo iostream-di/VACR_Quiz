@@ -63,5 +63,5 @@ This is neat little engine. If I generalize the naming conventions of the tools 
 
 
 Credits:
-Coding and initial push: SGT David "Marty" Martinez
+Coding and initial push: SGT David "Marty" Martinez <br>
 Additional resources and consultation: SSG Clark
