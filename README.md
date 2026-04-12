@@ -2,7 +2,7 @@
 14P VACR Quiz Project
 
 
-VACR Quiz Features:
+<h2>VACR Quiz Features</h2>
 + Randomly picked aircraft models from the hotlist while ensuring every model is iterated at least once before a new pool is generated.
 + Randomly picked aircraft image for that model from the pool of images.
 + Supports the following image formats: ".png", ".jpg", ".jpeg", ".webp", ".bmp", ".gif".
@@ -18,7 +18,7 @@ VACR Quiz Features:
 + Python dependencies included for stand-alone execution.
 
 
-Hotlist Manager Tool Features:
+<h2>Hotlist Manager Tool Features</h2>
 + Import/Export hotlist
 + Add/Remove aircraft
 + Add/Remove aircraft images (up to 26) per each aircraft.
@@ -30,7 +30,7 @@ Hotlist Manager Tool Features:
 + Python dependencies included for stand-alone execution.
 
 
-How to use:
+<h2>How to use</h2>
 1. Open up the hotlist manager tool
 2. Add a new aircraft.
 3. Use common nomenclature for naming the aircraft.
@@ -49,16 +49,16 @@ How to use:
 15. send it.
 
 
-Known limitations:
+<h2>Known limitations</h2>
 + VACR Quiz does 1 to 50 questions. (TODO: make the default value based on the hotlist entries, max values to 200)
 + Hotlist database is restricted to the "hotlist" folder.
 + Other image types not supported will not work. (TODO: Hotlist Manager tool should auto convert when you add new images _maybe_)
 
 
-Buglist:
+<h2>Buglist</h2>
 none yet.
 
-Notes:
+<h2>Notes</h2>
 This is neat little engine. If I generalize the naming conventions of the tools themselves, one could technically use this for ground vehicles, equipment, weapons, etc. Also it works well for throwing some Night Vision and Thermal recognition images.
 
 
