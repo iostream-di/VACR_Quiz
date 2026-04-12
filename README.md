@@ -1,8 +1,11 @@
 # VACR_Quiz
-14P VACR Quiz Project
 
-
+<h2>Changelog</h2>
++ Version 1.0 build zero released for both the VACR and the Hotlist_Manager apps.<br>
+<br>
+<br>
 <h2>VACR Quiz Features</h2>
++ Executable compiled. Version 1.0 build zero released.<br>
 + Randomly picked aircraft models from the hotlist while ensuring every model is iterated at least once before a new pool is generated.<br>
 + Randomly picked aircraft image for that model from the pool of images.<br>
 + Supports the following image formats: ".png", ".jpg", ".jpeg", ".webp", ".bmp", ".gif".<br>
@@ -15,10 +18,10 @@
 + At the end of the quiz a rollup of incorrect answers and shown, with the correct answer next to it.<br>
 + Also displays the percentage score at the end.<br>
 + Windows 11 Dark themed.<br>
-+ Python dependencies included for stand-alone execution.<br>
 <br>
 <br>
 <h2>Hotlist Manager Tool Features</h2>
++ Executable compiled. Version 1.0 build zero released.<br>
 + Import/Export hotlist<br>
 + Add/Remove aircraft<br>
 + Add/Remove aircraft images (up to 26) per each aircraft.<br>
@@ -27,10 +30,11 @@
 + Aircraft images can be added by drag & drop.<br>
 + Aircraft image naming conventions are automatically converted.<br>
 + Can edit aircraft name and category.<br>
-+ Python dependencies included for stand-alone execution.<br>
 <br>
 <br>
 <h2>How to use</h2>
++  Executables located in "dist" folder.<br>
+0. There already is a hotlist on file so if you don't want to generate a new one skip to step 10.<br>
 1. Open up the hotlist manager tool.<br>
 2. Add a new aircraft.<br>
 3. Use common nomenclature for naming the aircraft.<br>
@@ -56,12 +60,13 @@
 <br>
 <br>
 <h2>Buglist</h2>
-none yet.<br>
++ The Hotlist_Manager tool creates a copy of the hotlist you import in the "dist" folder, so a user might think they can import and edit and save and it rewrites that hotlist with the changes they made. However, this is not the case. For a user to make changes they would have to import, delete the hotlist they imported from the directory, and then export it as the same name back into that directory. This will be addressed on release 1.1.<br>
+<br>
 <br>
 <h2>Notes</h2>
-This is neat little engine. If I generalize the naming conventions of the tools themselves, one could technically use this for ground vehicles, equipment, weapons, etc. Also it works well for throwing some Night Vision and Thermal recognition images.
-
-
-Credits:
-Coding and initial push: SGT David "Marty" Martinez <br>
-Additional resources and consultation: SSG Clark
+This is neat little engine. If I generalize the naming conventions of the tools themselves, one could technically use this for ground vehicles, equipment, weapons, etc. Also it works well for throwing some Night Vision and Thermal recognition images.<br>
+<br>
+<br>
+<h2>Developers</h2>
+Coding and initial content push: SGT David "Marty" Martinez <br>
+Additional resources and consultation: SSG Jacob Clark (Air Defense Artillery Instructor)<br>
