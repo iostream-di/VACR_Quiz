@@ -3,7 +3,7 @@ from pathlib import Path
 import random
 
 # Load images
-IMAGE_DIR = Path("images")
+IMAGE_DIR = Path("imgs")
 image_files = list(IMAGE_DIR.glob("*.png"))
 
 # Initialize session state
