@@ -1,7 +1,7 @@
 # VACR_Quiz
 
 <h2>Changelog</h2>
-+ Version 1.1 build zero (In process): Porting to streamlit for unified access via NIPR computers and maybe mobile devices.<br>
++ Version 1.1 build 2 (In process): Porting to streamlit for unified access via NIPR computers and maybe mobile devices. Link: https://vacrquiz-pfnbpvqtgumek3nrbfkhql.streamlit.app/<br>
 + Version 1.0 build zero released for both the VACR and the Hotlist_Manager apps.<br>
 <br>
 <br>
