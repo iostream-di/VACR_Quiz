@@ -49,6 +49,34 @@ def load_hotlist(folder):
     return categories, img_dir
 
 # ---------------------------------------------------------
+# VACR IMAGE SCALING (ported from pygame version)
+# ---------------------------------------------------------
+def scale_vacr_pil(img, max_w, max_h):
+    w, h = img.size
+
+    # match your pygame logic: scale to fit screen while preserving aspect ratio
+    if h > w:
+        scale = max_h / h
+    else:
+        scale = max_w / w
+
+    new_w = int(w * scale)
+    new_h = int(h * scale)
+
+    # clamp if needed
+    if new_w > max_w:
+        scale = max_w / new_w
+        new_w = int(new_w * scale)
+        new_h = int(new_h * scale)
+
+    if new_h > max_h:
+        scale = max_h / new_h
+        new_h = int(new_h * scale)
+        new_w = int(new_w * scale)
+
+    return img.resize((new_w, new_h), Image.LANCZOS)
+
+# ---------------------------------------------------------
 # LOAD IMAGES
 # ---------------------------------------------------------
 def load_images(img_dir, models):
@@ -201,9 +229,11 @@ def run_quiz():
     # -----------------------------------------------------
     if quiz.state == "image":
         st.subheader("Look closely…")
+
         if quiz.current_image:
             img = Image.open(quiz.current_image)
-            st.image(img, use_column_width=True)
+            img = scale_vacr_pil(img, 1600, 900)  # VACR scaling
+            st.image(img, use_column_width=False)
         else:
             st.warning("No image found")
 
