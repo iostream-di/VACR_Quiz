@@ -232,13 +232,15 @@ def run_quiz():
 
         if quiz.current_image:
             img = Image.open(quiz.current_image)
-            img = scale_vacr_pil(img, 1600, 900)  # VACR scaling
+            img = scale_vacr_pil(img, 1600, 900)
             st.image(img, use_column_width=False)
         else:
             st.warning("No image found")
 
+        # Live timer
+        timer_placeholder = st.empty()
         remaining = quiz.image_time - (time.time() - quiz.start_time)
-        st.progress(max(0, remaining) / quiz.image_time)
+        timer_placeholder.progress(max(0, remaining) / quiz.image_time)
 
         st.session_state._force_rerun = True
         return
@@ -255,8 +257,10 @@ def run_quiz():
                 quiz.process_answer(choice)
                 st.rerun()
 
+        # Live timer
+        timer_placeholder = st.empty()
         remaining = quiz.choice_time - (time.time() - quiz.start_time)
-        st.progress(max(0, remaining) / quiz.choice_time)
+        timer_placeholder.progress(max(0, remaining) / quiz.choice_time)
 
         st.session_state._force_rerun = True
         return
