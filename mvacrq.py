@@ -173,7 +173,7 @@ class Quiz:
 
         if difficulty == "Easy":
             self.image_time = 10
-            self.choice_time = 30
+            self.choice_time = 15
         elif difficulty == "Warfighter":
             self.image_time = 3
             self.choice_time = 4
