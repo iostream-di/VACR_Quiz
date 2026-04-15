@@ -106,8 +106,7 @@ class Quiz:
         self.index = 0
         self.score = 0
         self.wrong = []
-        self.state = "image"
-        self.start_time = time.time()
+        self.state = "image"  # "image", "choices", "finished"
 
         self.current_model = None
         self.current_image = None
@@ -144,17 +143,6 @@ class Quiz:
         random.shuffle(self.choices)
 
         self.state = "image"
-        self.start_time = time.time()
-
-    def update(self):
-        now = time.time()
-
-        if self.state == "image" and now - self.start_time >= self.image_time:
-            self.state = "choices"
-            self.start_time = now
-
-        elif self.state == "choices" and now - self.start_time >= self.choice_time:
-            self.process_answer(None)
 
     def process_answer(self, answer):
         if answer == self.current_model:
@@ -169,7 +157,7 @@ class Quiz:
 # SCREEN 1 — MENU
 # ---------------------------------------------------------
 def screen_menu():
-    st.title("✈️ Marty’s VACR Quiz")
+    st.title("✈️ VACR Quiz")
 
     hotlists = load_hotlist_folders()
     chosen = st.selectbox("Hotlist", hotlists)
@@ -182,45 +170,100 @@ def screen_menu():
         st.session_state.screen = "quiz"
         st.session_state.quiz_settings = (chosen, num_q, difficulty, num_choices)
         st.session_state.quiz = None
+        st.session_state.phase_start = None
+        st.session_state.last_state = None
+        st.session_state.selected_choice = None
         st.rerun()
 
 # ---------------------------------------------------------
 # SCREEN 2 — QUIZ
 # ---------------------------------------------------------
 def screen_quiz():
+    # 1-second tick, VACR-style pacing
     st_autorefresh(interval=1000, key="quiz_tick")
 
+    # Initialize quiz if needed
     if "quiz" not in st.session_state or st.session_state.quiz is None:
         chosen, num_q, difficulty, num_choices = st.session_state.quiz_settings
         categories, img_dir = load_hotlist(chosen)
         models = list(categories.keys())
         images = load_images(img_dir, models)
         st.session_state.quiz = Quiz(models, categories, images, num_q, difficulty, num_choices)
+        st.session_state.phase_start = None
+        st.session_state.last_state = None
+        st.session_state.selected_choice = None
 
     quiz = st.session_state.quiz
-    quiz.update()
 
+    # Detect phase change → reset phase timer
+    if quiz.state != st.session_state.get("last_state"):
+        st.session_state.phase_start = None  # will be set after render
+        st.session_state.last_state = quiz.state
+
+    # ---------------- IMAGE PHASE ----------------
     if quiz.state == "image":
         st.subheader("Look closely…")
+
         if quiz.current_image:
             img = Image.open(quiz.current_image)
             img = scale_vacr_pil(img, 1600, 900)
             st.image(img)
-        remaining = quiz.image_time - (time.time() - quiz.start_time)
-        st.progress(max(0, remaining) / quiz.image_time)
+        else:
+            st.warning("No image found")
+
+        # Start timer AFTER image is rendered
+        if st.session_state.phase_start is None:
+            st.session_state.phase_start = time.time()
+
+        elapsed = time.time() - st.session_state.phase_start
+        remaining = quiz.image_time - elapsed
+        st.progress(max(0.0, remaining) / quiz.image_time)
+
+        if remaining <= 0:
+            quiz.state = "choices"
+            st.session_state.phase_start = None
+            st.session_state.selected_choice = None
+            st.rerun()
         return
 
+    # ---------------- CHOICES PHASE ----------------
     if quiz.state == "choices":
         st.subheader("Which one was it?")
+
+        if st.session_state.phase_start is None:
+            st.session_state.phase_start = time.time()
+
+        selected = st.session_state.get("selected_choice")
+
         cols = st.columns(2)
         for i, choice in enumerate(quiz.choices):
-            if cols[i % 2].button(choice):
-                quiz.process_answer(choice)
+            col = cols[i % 2]
+            label = choice
+            if choice == selected:
+                label = f"▶ {choice}"
+
+            if col.button(label, key=f"choice_{i}"):
+                st.session_state.selected_choice = choice
                 st.rerun()
-        remaining = quiz.choice_time - (time.time() - quiz.start_time)
-        st.progress(max(0, remaining) / quiz.choice_time)
+
+        elapsed = time.time() - st.session_state.phase_start
+        remaining = quiz.choice_time - elapsed
+        st.progress(max(0.0, remaining) / quiz.choice_time)
+
+        if remaining <= 0:
+            final_answer = st.session_state.get("selected_choice")
+            quiz.process_answer(final_answer)
+            st.session_state.selected_choice = None
+            st.session_state.phase_start = None
+
+            if quiz.state == "finished":
+                st.session_state.screen = "results"
+                st.rerun()
+            else:
+                st.rerun()
         return
 
+    # ---------------- FINISHED → RESULTS ----------------
     if quiz.state == "finished":
         st.session_state.screen = "results"
         st.rerun()
@@ -233,18 +276,22 @@ def screen_results():
 
     st.header("Results")
     percent = (quiz.score / quiz.num_q) * 100
-    st.subheader(f"Score: **{quiz.score}/{quiz.num_q}** ({percent:.1f}%)")
+    st.subheader(f"Score: {quiz.score}/{quiz.num_q} ({percent:.1f}%)")
 
     if quiz.wrong:
         st.subheader("Incorrect Answers")
         for correct, chosen in quiz.wrong:
-            st.write(f"❌ {chosen} → {correct}")
+            shown = chosen if chosen is not None else "No answer"
+            st.write(f"❌ {shown} → {correct}")
     else:
         st.success("Perfect score!")
 
     if st.button("Return to Menu"):
         st.session_state.screen = "menu"
         st.session_state.quiz = None
+        st.session_state.phase_start = None
+        st.session_state.last_state = None
+        st.session_state.selected_choice = None
         st.rerun()
 
 # ---------------------------------------------------------
