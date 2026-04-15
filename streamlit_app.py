@@ -5,6 +5,13 @@ import time
 from PIL import Image
 
 # ---------------------------------------------------------
+# SAFE RERUN HANDLER (must be at top)
+# ---------------------------------------------------------
+if st.session_state.get("_force_rerun", False):
+    st.session_state._force_rerun = False
+    st.rerun()
+
+# ---------------------------------------------------------
 # PAGE CONFIG
 # ---------------------------------------------------------
 st.set_page_config(
@@ -200,10 +207,11 @@ def run_quiz():
         else:
             st.warning("No image found")
 
-        remaining = quiz.image_time - int(time.time() - quiz.start_time)
+        remaining = quiz.image_time - (time.time() - quiz.start_time)
         st.progress(max(0, remaining) / quiz.image_time)
 
-        st.experimental_rerun()
+        st.session_state._force_rerun = True
+        return
 
     # -----------------------------------------------------
     # CHOICE PHASE
@@ -215,12 +223,13 @@ def run_quiz():
         for i, choice in enumerate(quiz.choices):
             if cols[i % 2].button(choice):
                 quiz.process_answer(choice)
-                st.experimental_rerun()
+                st.rerun()
 
-        remaining = quiz.choice_time - int(time.time() - quiz.start_time)
+        remaining = quiz.choice_time - (time.time() - quiz.start_time)
         st.progress(max(0, remaining) / quiz.choice_time)
 
-        st.experimental_rerun()
+        st.session_state._force_rerun = True
+        return
 
     # -----------------------------------------------------
     # RESULTS
@@ -240,7 +249,7 @@ def run_quiz():
         if st.button("Return to Menu"):
             st.session_state.quiz_started = False
             st.session_state.quiz = None
-            st.experimental_rerun()
+            st.rerun()
 
 # ---------------------------------------------------------
 # RUN APP
