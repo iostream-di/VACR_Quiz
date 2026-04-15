@@ -6,26 +6,35 @@ import time
 from PIL import Image
 
 # ---------------------------------------------------------
-# SAFE RERUN HANDLER (must be at top)
-# ---------------------------------------------------------
-if st.session_state.get("_force_rerun", False):
-    st.session_state._force_rerun = False
-    st.rerun()
-
-# ---------------------------------------------------------
 # PAGE CONFIG
 # ---------------------------------------------------------
-st.set_page_config(
-    page_title="VACR QUIZ",
-    layout="wide",
-    page_icon="✈️"
-)
+st.set_page_config(page_title="VACR QUIZ", layout="wide", page_icon="✈️")
 
 # ---------------------------------------------------------
-# AUTOREFRESH (1 second)
+# VACR IMAGE SCALING
 # ---------------------------------------------------------
-if st.session_state.get("quiz_started", False):
-    st_autorefresh(interval=1000, key="quiz_refresh")
+def scale_vacr_pil(img, max_w, max_h):
+    w, h = img.size
+
+    if h > w:
+        scale = max_h / h
+    else:
+        scale = max_w / w
+
+    new_w = int(w * scale)
+    new_h = int(h * scale)
+
+    if new_w > max_w:
+        scale = max_w / new_w
+        new_w = int(new_w * scale)
+        new_h = int(new_h * scale)
+
+    if new_h > max_h:
+        scale = max_h / new_h
+        new_h = int(new_h * scale)
+        new_w = int(new_w * scale)
+
+    return img.resize((new_w, new_h), Image.LANCZOS)
 
 # ---------------------------------------------------------
 # LOAD HOTLIST FOLDERS
@@ -54,32 +63,6 @@ def load_hotlist(folder):
             categories[name.strip()] = cat.strip().capitalize()
 
     return categories, img_dir
-
-# ---------------------------------------------------------
-# VACR IMAGE SCALING
-# ---------------------------------------------------------
-def scale_vacr_pil(img, max_w, max_h):
-    w, h = img.size
-
-    if h > w:
-        scale = max_h / h
-    else:
-        scale = max_w / w
-
-    new_w = int(w * scale)
-    new_h = int(h * scale)
-
-    if new_w > max_w:
-        scale = max_w / new_w
-        new_w = int(new_w * scale)
-        new_h = int(new_h * scale)
-
-    if new_h > max_h:
-        scale = max_h / new_h
-        new_h = int(new_h * scale)
-        new_w = int(new_w * scale)
-
-    return img.resize((new_w, new_h), Image.LANCZOS)
 
 # ---------------------------------------------------------
 # LOAD IMAGES
@@ -183,35 +166,31 @@ class Quiz:
         self.next_question()
 
 # ---------------------------------------------------------
-# STREAMLIT UI
+# SCREEN 1 — MENU
 # ---------------------------------------------------------
-def run_quiz():
+def screen_menu():
     st.title("✈️ Marty’s VACR Quiz")
 
-    # ------------------------------
-    # MENU SCREEN
-    # ------------------------------
-    if not st.session_state.get("quiz_started", False):
+    hotlists = load_hotlist_folders()
+    chosen = st.selectbox("Hotlist", hotlists)
 
-        hotlists = load_hotlist_folders()
-        chosen = st.selectbox("Hotlist", hotlists)
+    num_q = st.slider("Number of aircraft", 1, 50, 20)
+    difficulty = st.selectbox("Difficulty", ["Easy", "Standard", "Warfighter", "AI"])
+    num_choices = st.slider("Choices per question", 4, 6, 4)
 
-        num_q = st.slider("Number of aircraft", 1, 50, 20)
-        difficulty = st.selectbox("Difficulty", ["Easy", "Standard", "Warfighter", "AI"])
-        num_choices = st.slider("Choices per question", 4, 6, 4)
+    if st.button("Start Quiz"):
+        st.session_state.screen = "quiz"
+        st.session_state.quiz_settings = (chosen, num_q, difficulty, num_choices)
+        st.session_state.quiz = None
+        st.rerun()
 
-        if st.button("Start Quiz"):
-            st.session_state.quiz_started = True
-            st.session_state.quiz_settings = (chosen, num_q, difficulty, num_choices)
-            st.session_state._force_rerun = True
-            st.stop()
+# ---------------------------------------------------------
+# SCREEN 2 — QUIZ
+# ---------------------------------------------------------
+def screen_quiz():
+    st_autorefresh(interval=1000, key="quiz_tick")
 
-        return
-
-    # ------------------------------
-    # QUIZ INITIALIZATION
-    # ------------------------------
-    if "quiz" not in st.session_state:
+    if "quiz" not in st.session_state or st.session_state.quiz is None:
         chosen, num_q, difficulty, num_choices = st.session_state.quiz_settings
         categories, img_dir = load_hotlist(chosen)
         models = list(categories.keys())
@@ -221,60 +200,62 @@ def run_quiz():
     quiz = st.session_state.quiz
     quiz.update()
 
-    # ------------------------------
-    # IMAGE PHASE
-    # ------------------------------
     if quiz.state == "image":
         st.subheader("Look closely…")
-
         if quiz.current_image:
             img = Image.open(quiz.current_image)
             img = scale_vacr_pil(img, 1600, 900)
-            st.image(img, use_column_width=False)
-        else:
-            st.warning("No image found")
-
+            st.image(img)
         remaining = quiz.image_time - (time.time() - quiz.start_time)
         st.progress(max(0, remaining) / quiz.image_time)
         return
 
-    # ------------------------------
-    # CHOICE PHASE
-    # ------------------------------
-    elif quiz.state == "choices":
+    if quiz.state == "choices":
         st.subheader("Which one was it?")
         cols = st.columns(2)
-
         for i, choice in enumerate(quiz.choices):
             if cols[i % 2].button(choice):
                 quiz.process_answer(choice)
                 st.rerun()
-
         remaining = quiz.choice_time - (time.time() - quiz.start_time)
         st.progress(max(0, remaining) / quiz.choice_time)
         return
 
-    # ------------------------------
-    # RESULTS
-    # ------------------------------
+    if quiz.state == "finished":
+        st.session_state.screen = "results"
+        st.rerun()
+
+# ---------------------------------------------------------
+# SCREEN 3 — RESULTS
+# ---------------------------------------------------------
+def screen_results():
+    quiz = st.session_state.quiz
+
+    st.header("Results")
+    percent = (quiz.score / quiz.num_q) * 100
+    st.subheader(f"Score: **{quiz.score}/{quiz.num_q}** ({percent:.1f}%)")
+
+    if quiz.wrong:
+        st.subheader("Incorrect Answers")
+        for correct, chosen in quiz.wrong:
+            st.write(f"❌ {chosen} → {correct}")
     else:
-        st.header("Results")
-        percent = (quiz.score / quiz.num_q) * 100
-        st.subheader(f"Score: **{quiz.score}/{quiz.num_q}** ({percent:.1f}%)")
+        st.success("Perfect score!")
 
-        if quiz.wrong:
-            st.subheader("Incorrect Answers")
-            for correct, chosen in quiz.wrong:
-                st.write(f"❌ **{chosen}** → **{correct}**")
-        else:
-            st.success("Perfect score!")
-
-        if st.button("Return to Menu"):
-            st.session_state.quiz_started = False
-            st.session_state.quiz = None
-            st.rerun()
+    if st.button("Return to Menu"):
+        st.session_state.screen = "menu"
+        st.session_state.quiz = None
+        st.rerun()
 
 # ---------------------------------------------------------
-# RUN APP
+# MAIN ROUTER
 # ---------------------------------------------------------
-run_quiz()
+if "screen" not in st.session_state:
+    st.session_state.screen = "menu"
+
+if st.session_state.screen == "menu":
+    screen_menu()
+elif st.session_state.screen == "quiz":
+    screen_quiz()
+elif st.session_state.screen == "results":
+    screen_results()
