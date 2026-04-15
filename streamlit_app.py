@@ -8,7 +8,7 @@ from PIL import Image
 # ---------------------------------------------------------
 # PAGE CONFIG
 # ---------------------------------------------------------
-st.set_page_config(page_title="VACR QUIZ", layout="wide", page_icon="✈️")
+st.set_page_config(page_title="Marty's VACR QUIZ", layout="wide", page_icon="✈️")
 
 # ---------------------------------------------------------
 # VACR IMAGE SCALING
