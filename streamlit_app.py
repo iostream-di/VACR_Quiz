@@ -1,4 +1,5 @@
 import streamlit as st
+from streamlit_autorefresh import st_autorefresh
 from pathlib import Path
 import random
 import time
@@ -19,6 +20,13 @@ st.set_page_config(
     layout="wide",
     page_icon="✈️"
 )
+
+# ---------------------------------------------------------
+# AUTOREFRESH (1 second)
+# ---------------------------------------------------------
+# Only active during quiz
+if st.session_state.get("quiz_started", False):
+    st_autorefresh(interval=1000, key="quiz_refresh")
 
 # ---------------------------------------------------------
 # LOAD HOTLIST FOLDERS
@@ -54,7 +62,6 @@ def load_hotlist(folder):
 def scale_vacr_pil(img, max_w, max_h):
     w, h = img.size
 
-    # match your pygame logic: scale to fit screen while preserving aspect ratio
     if h > w:
         scale = max_h / h
     else:
@@ -63,7 +70,6 @@ def scale_vacr_pil(img, max_w, max_h):
     new_w = int(w * scale)
     new_h = int(h * scale)
 
-    # clamp if needed
     if new_w > max_w:
         scale = max_w / new_w
         new_w = int(new_w * scale)
@@ -98,7 +104,6 @@ class Quiz:
         self.num_q = num_q
         self.num_choices = num_choices
 
-        # Difficulty timing
         if difficulty == "Easy":
             self.image_time = 10
             self.choice_time = 15
@@ -112,7 +117,6 @@ class Quiz:
             self.image_time = 5
             self.choice_time = 5
 
-        # Build question list
         self.questions = random.sample(models, min(num_q, len(models)))
         while len(self.questions) < num_q:
             self.questions += random.sample(models, min(len(models), num_q - len(self.questions)))
@@ -129,7 +133,6 @@ class Quiz:
 
         self.next_question()
 
-    # -----------------------------------------------------
     def next_question(self):
         if self.index >= self.num_q:
             self.state = "finished"
@@ -137,14 +140,9 @@ class Quiz:
 
         self.current_model = self.questions[self.index]
 
-        # Pick image
         img_list = self.images.get(self.current_model, [])
-        if img_list:
-            self.current_image = random.choice(img_list)
-        else:
-            self.current_image = None
+        self.current_image = random.choice(img_list) if img_list else None
 
-        # Build choices
         cat = self.categories[self.current_model]
         others = [m for m in self.models if m != self.current_model]
         same_cat = [m for m in others if self.categories[m] == cat]
@@ -166,7 +164,6 @@ class Quiz:
         self.state = "image"
         self.start_time = time.time()
 
-    # -----------------------------------------------------
     def update(self):
         now = time.time()
 
@@ -177,7 +174,6 @@ class Quiz:
         elif self.state == "choices" and now - self.start_time >= self.choice_time:
             self.process_answer(None)
 
-    # -----------------------------------------------------
     def process_answer(self, answer):
         if answer == self.current_model:
             self.score += 1
@@ -193,7 +189,6 @@ class Quiz:
 def run_quiz():
     st.title("✈️ Marty’s VACR Quiz")
 
-    # Sidebar settings
     st.sidebar.header("Settings")
 
     hotlists = load_hotlist_folders()
@@ -207,14 +202,10 @@ def run_quiz():
         st.session_state.quiz_started = True
         st.session_state.quiz = None
 
-    if "quiz_started" not in st.session_state:
-        st.session_state.quiz_started = False
-
-    if not st.session_state.quiz_started:
+    if not st.session_state.get("quiz_started", False):
         st.info("Configure settings and press **Start Quiz**")
         return
 
-    # Load quiz if not already loaded
     if "quiz" not in st.session_state or st.session_state.quiz is None:
         categories, img_dir = load_hotlist(chosen)
         models = list(categories.keys())
@@ -237,12 +228,8 @@ def run_quiz():
         else:
             st.warning("No image found")
 
-        # Live timer
-        timer_placeholder = st.empty()
         remaining = quiz.image_time - (time.time() - quiz.start_time)
-        timer_placeholder.progress(max(0, remaining) / quiz.image_time)
-
-        st.session_state._force_rerun = True
+        st.progress(max(0, remaining) / quiz.image_time)
         return
 
     # -----------------------------------------------------
@@ -257,12 +244,8 @@ def run_quiz():
                 quiz.process_answer(choice)
                 st.rerun()
 
-        # Live timer
-        timer_placeholder = st.empty()
         remaining = quiz.choice_time - (time.time() - quiz.start_time)
-        timer_placeholder.progress(max(0, remaining) / quiz.choice_time)
-
-        st.session_state._force_rerun = True
+        st.progress(max(0, remaining) / quiz.choice_time)
         return
 
     # -----------------------------------------------------
