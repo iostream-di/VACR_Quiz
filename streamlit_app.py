@@ -24,7 +24,6 @@ st.set_page_config(
 # ---------------------------------------------------------
 # AUTOREFRESH (1 second)
 # ---------------------------------------------------------
-# Only active during quiz
 if st.session_state.get("quiz_started", False):
     st_autorefresh(interval=1000, key="quiz_refresh")
 
@@ -198,9 +197,14 @@ def run_quiz():
     difficulty = st.sidebar.selectbox("Difficulty", ["Easy", "Standard", "Warfighter", "AI"])
     num_choices = st.sidebar.slider("Choices per question", 4, 6, 4)
 
+    # -----------------------------------------------------
+    # START QUIZ BUTTON — FIXED
+    # -----------------------------------------------------
     if st.sidebar.button("Start Quiz"):
         st.session_state.quiz_started = True
         st.session_state.quiz = None
+        st.session_state._force_rerun = True
+        st.stop()  # <-- CRITICAL FIX
 
     if not st.session_state.get("quiz_started", False):
         st.info("Configure settings and press **Start Quiz**")
