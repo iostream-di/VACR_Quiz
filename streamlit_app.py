@@ -56,7 +56,7 @@ def load_hotlist(folder):
     return categories, img_dir
 
 # ---------------------------------------------------------
-# VACR IMAGE SCALING (ported from pygame version)
+# VACR IMAGE SCALING
 # ---------------------------------------------------------
 def scale_vacr_pil(img, max_w, max_h):
     w, h = img.size
@@ -188,29 +188,31 @@ class Quiz:
 def run_quiz():
     st.title("✈️ Marty’s VACR Quiz")
 
-    st.sidebar.header("Settings")
-
-    hotlists = load_hotlist_folders()
-    chosen = st.sidebar.selectbox("Hotlist", hotlists)
-
-    num_q = st.sidebar.slider("Number of aircraft", 1, 50, 20)
-    difficulty = st.sidebar.selectbox("Difficulty", ["Easy", "Standard", "Warfighter", "AI"])
-    num_choices = st.sidebar.slider("Choices per question", 4, 6, 4)
-
-    # -----------------------------------------------------
-    # START QUIZ BUTTON — FIXED
-    # -----------------------------------------------------
-    if st.sidebar.button("Start Quiz"):
-        st.session_state.quiz_started = True
-        st.session_state.quiz = None
-        st.session_state._force_rerun = True
-        st.stop()  # <-- CRITICAL FIX
-
+    # ------------------------------
+    # MENU SCREEN
+    # ------------------------------
     if not st.session_state.get("quiz_started", False):
-        st.info("Configure settings and press **Start Quiz**")
+
+        hotlists = load_hotlist_folders()
+        chosen = st.selectbox("Hotlist", hotlists)
+
+        num_q = st.slider("Number of aircraft", 1, 50, 20)
+        difficulty = st.selectbox("Difficulty", ["Easy", "Standard", "Warfighter", "AI"])
+        num_choices = st.slider("Choices per question", 4, 6, 4)
+
+        if st.button("Start Quiz"):
+            st.session_state.quiz_started = True
+            st.session_state.quiz_settings = (chosen, num_q, difficulty, num_choices)
+            st.session_state._force_rerun = True
+            st.stop()
+
         return
 
-    if "quiz" not in st.session_state or st.session_state.quiz is None:
+    # ------------------------------
+    # QUIZ INITIALIZATION
+    # ------------------------------
+    if "quiz" not in st.session_state:
+        chosen, num_q, difficulty, num_choices = st.session_state.quiz_settings
         categories, img_dir = load_hotlist(chosen)
         models = list(categories.keys())
         images = load_images(img_dir, models)
@@ -219,9 +221,9 @@ def run_quiz():
     quiz = st.session_state.quiz
     quiz.update()
 
-    # -----------------------------------------------------
+    # ------------------------------
     # IMAGE PHASE
-    # -----------------------------------------------------
+    # ------------------------------
     if quiz.state == "image":
         st.subheader("Look closely…")
 
@@ -236,9 +238,9 @@ def run_quiz():
         st.progress(max(0, remaining) / quiz.image_time)
         return
 
-    # -----------------------------------------------------
+    # ------------------------------
     # CHOICE PHASE
-    # -----------------------------------------------------
+    # ------------------------------
     elif quiz.state == "choices":
         st.subheader("Which one was it?")
         cols = st.columns(2)
@@ -252,9 +254,9 @@ def run_quiz():
         st.progress(max(0, remaining) / quiz.choice_time)
         return
 
-    # -----------------------------------------------------
+    # ------------------------------
     # RESULTS
-    # -----------------------------------------------------
+    # ------------------------------
     else:
         st.header("Results")
         percent = (quiz.score / quiz.num_q) * 100
