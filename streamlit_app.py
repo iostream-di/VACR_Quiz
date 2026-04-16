@@ -7,14 +7,31 @@ from PIL import Image
 import openai
 
 # ---------------------------------------------------------
-# AI INTEGRATION
+# PAGE CONFIG
 # ---------------------------------------------------------
+st.set_page_config(page_title="Marty's VACR QUIZ", layout="wide", page_icon="✈️")
+
+# Remove mobile browser auto-focus highlight
+st.markdown("""
+    <style>
+    button:focus {
+        outline: none !important;
+        box-shadow: none !important;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
+# ---------------------------------------------------------
+# OPENAI SETUP
+# ---------------------------------------------------------
+openai.api_key = st.secrets["OPENAI_API_KEY"]
+
 def ai_difference_summary(correct, chosen):
     if chosen is None:
         return f"You did not select an answer. The correct aircraft was **{correct}**."
 
     prompt = f"""
-You are a military aircraft recognition instructor. 
+You are a military aircraft recognition instructor.
 Explain the silhouette differences between these two aircraft:
 
 Correct aircraft: {correct}
@@ -29,33 +46,19 @@ Focus ONLY on:
 - Intake shape
 - Overall proportions
 
-Keep it short, clear, and training‑focused.
+Keep it short, clear, and training-focused.
 """
 
-    response = openai.ChatCompletion.create(
-        model="gpt-4o-mini",
-        messages=[{"role": "user", "content": prompt}],
-        temperature=0.2,
-    )
+    try:
+        response = openai.ChatCompletion.create(
+            model="gpt-4o-mini",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.2,
+        )
+        return response["choices"][0]["message"]["content"]
 
-    return response["choices"][0]["message"]["content"]
-
-
-
-# ---------------------------------------------------------
-# PAGE CONFIG
-# ---------------------------------------------------------
-st.set_page_config(page_title="Marty's VACR QUIZ", layout="wide", page_icon="✈️")
-st.markdown("""
-    <style>
-    /* Remove mobile browser auto-focus highlight */
-    button:focus {
-        outline: none !important;
-        box-shadow: none !important;
-    }
-    </style>
-""", unsafe_allow_html=True)
-
+    except Exception as e:
+        return f"AI summary unavailable. Error: {e}"
 
 # ---------------------------------------------------------
 # VACR IMAGE SCALING
@@ -153,7 +156,7 @@ class Quiz:
         self.index = 0
         self.score = 0
         self.wrong = []
-        self.state = "image"  # "image", "choices", "finished"
+        self.state = "image"
 
         self.current_model = None
         self.current_image = None
@@ -209,22 +212,10 @@ def screen_menu():
     hotlists = load_hotlist_folders()
     chosen = st.selectbox("Hotlist", hotlists)
 
-    # Load selected hotlist to determine max aircraft
     categories, _ = load_hotlist(chosen)
     max_aircraft = len(categories)
 
-    # Safety: if hotlist is empty, prevent quiz start
-    if max_aircraft == 0:
-        st.error("This hotlist has no aircraft. Add aircraft in the manager app.")
-        return
-
-    num_q = st.slider(
-        "Number of aircraft",
-        1,
-        max_aircraft,
-        min(20, max_aircraft)
-    )
-
+    num_q = st.slider("Number of aircraft", 1, max_aircraft, min(20, max_aircraft))
     difficulty = st.selectbox("Difficulty", ["Easy", "Standard", "Warfighter", "AI"])
     num_choices = st.slider("Choices per question", 4, 6, 4)
 
@@ -237,15 +228,12 @@ def screen_menu():
         st.session_state.selected_choice = None
         st.rerun()
 
-
 # ---------------------------------------------------------
 # SCREEN 2 — QUIZ
 # ---------------------------------------------------------
 def screen_quiz():
-    # 1-second tick, VACR-style pacing
     st_autorefresh(interval=1000, key="quiz_tick")
 
-    # Initialize quiz if needed
     if "quiz" not in st.session_state or st.session_state.quiz is None:
         chosen, num_q, difficulty, num_choices = st.session_state.quiz_settings
         categories, img_dir = load_hotlist(chosen)
@@ -258,12 +246,10 @@ def screen_quiz():
 
     quiz = st.session_state.quiz
 
-    # Detect phase change → reset phase timer
     if quiz.state != st.session_state.get("last_state"):
-        st.session_state.phase_start = None  # will be set after render
+        st.session_state.phase_start = None
         st.session_state.last_state = quiz.state
 
-    # ---------------- IMAGE PHASE ----------------
     if quiz.state == "image":
         st.subheader("Look closely…")
 
@@ -274,7 +260,6 @@ def screen_quiz():
         else:
             st.warning("No image found")
 
-        # Start timer AFTER image is rendered
         if st.session_state.phase_start is None:
             st.session_state.phase_start = time.time()
 
@@ -289,7 +274,6 @@ def screen_quiz():
             st.rerun()
         return
 
-    # ---------------- CHOICES PHASE ----------------
     if quiz.state == "choices":
         st.subheader("Which one was it?")
 
@@ -301,9 +285,7 @@ def screen_quiz():
         cols = st.columns(2)
         for i, choice in enumerate(quiz.choices):
             col = cols[i % 2]
-            label = choice
-            if choice == selected:
-                label = f"▶ {choice}"
+            label = f"▶ {choice}" if choice == selected else choice
 
             if col.button(label, key=f"choice_{i}"):
                 st.session_state.selected_choice = choice
@@ -326,7 +308,6 @@ def screen_quiz():
                 st.rerun()
         return
 
-    # ---------------- FINISHED → RESULTS ----------------
     if quiz.state == "finished":
         st.session_state.screen = "results"
         st.rerun()
@@ -342,15 +323,15 @@ def screen_results():
     st.subheader(f"Score: {quiz.score}/{quiz.num_q} ({percent:.1f}%)")
 
     if quiz.wrong:
-    st.subheader("Incorrect Answers")
+        st.subheader("Incorrect Answers")
 
-    for correct, chosen in quiz.wrong:
-        shown = chosen if chosen is not None else "No answer"
+        for correct, chosen in quiz.wrong:
+            shown = chosen if chosen is not None else "No answer"
 
-        with st.expander(f"❌ {shown} → {correct}"):
-            with st.spinner("Analyzing differences..."):
-                summary = ai_difference_summary(correct, chosen)
-            st.markdown(summary)
+            with st.expander(f"❌ {shown} → {correct}"):
+                with st.spinner("Analyzing differences…"):
+                    summary = ai_difference_summary(correct, chosen)
+                st.markdown(summary)
 
     else:
         st.success("Perfect score!")
