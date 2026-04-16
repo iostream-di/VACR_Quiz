@@ -4,13 +4,6 @@ from pathlib import Path
 import random
 import time
 from PIL import Image
-from openai import OpenAI
-client = OpenAI(
-    api_key=st.secrets["HF_API_KEY"],
-    base_url="https://api-inference.huggingface.co/v1/"
-)
-
-
 
 # ---------------------------------------------------------
 # PAGE CONFIG
@@ -26,43 +19,6 @@ st.markdown("""
     }
     </style>
 """, unsafe_allow_html=True)
-
-# ---------------------------------------------------------
-# OPENAI SETUP
-# ---------------------------------------------------------
-def ai_difference_summary(correct, chosen):
-    if chosen is None:
-        return f"You did not select an answer. The correct aircraft was **{correct}**."
-
-    prompt = f"""
-You are a military aircraft recognition instructor.
-Explain the silhouette differences between these two aircraft:
-
-Correct aircraft: {correct}
-Chosen aircraft: {chosen}
-
-Focus ONLY on:
-- Nose shape
-- Tail configuration
-- Wing geometry
-- Engine placement
-- Canopy style
-- Intake shape
-- Overall proportions
-
-Keep it short, clear, and training-focused.
-"""
-
-    try:
-        response = client.chat.completions.create(
-            model="meta-llama/Meta-Llama-3.1-8B-Instruct",
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.2,
-        )
-        return response.choices[0].message["content"]
-
-    except Exception as e:
-        return f"AI summary unavailable. Error: {e}"
 
 # ---------------------------------------------------------
 # VACR IMAGE SCALING
@@ -331,11 +287,7 @@ def screen_results():
 
         for correct, chosen in quiz.wrong:
             shown = chosen if chosen is not None else "No answer"
-
-            with st.expander(f"❌ {shown} → {correct}"):
-                with st.spinner("Analyzing differences…"):
-                    summary = ai_difference_summary(correct, chosen)
-                st.markdown(summary)
+            st.markdown(f"❌ **{shown} → {correct}**")
 
     else:
         st.success("Perfect score!")
