@@ -4,8 +4,8 @@ from pathlib import Path
 import random
 import time
 from PIL import Image
-from openai import OpenAI
-client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
+from groq import Groq
+client = Groq(api_key=st.secrets["GROQ_API_KEY"])
 
 # ---------------------------------------------------------
 # PAGE CONFIG
@@ -50,7 +50,7 @@ Keep it short, clear, and training-focused.
 
     try:
         response = client.chat.completions.create(
-            model="gpt-4o-mini",
+            model="llama3-70b-8192",
             messages=[{"role": "user", "content": prompt}],
             temperature=0.2,
         )
