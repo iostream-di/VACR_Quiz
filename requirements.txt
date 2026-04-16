@@ -2,3 +2,4 @@ streamlit
 pillow
 streamlit-autorefresh
 webp
+openai

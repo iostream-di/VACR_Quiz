@@ -4,6 +4,43 @@ from pathlib import Path
 import random
 import time
 from PIL import Image
+import openai
+
+# ---------------------------------------------------------
+# AI INTEGRATION
+# ---------------------------------------------------------
+def ai_difference_summary(correct, chosen):
+    if chosen is None:
+        return f"You did not select an answer. The correct aircraft was **{correct}**."
+
+    prompt = f"""
+You are a military aircraft recognition instructor. 
+Explain the silhouette differences between these two aircraft:
+
+Correct aircraft: {correct}
+Chosen aircraft: {chosen}
+
+Focus ONLY on:
+- Nose shape
+- Tail configuration
+- Wing geometry
+- Engine placement
+- Canopy style
+- Intake shape
+- Overall proportions
+
+Keep it short, clear, and training‑focused.
+"""
+
+    response = openai.ChatCompletion.create(
+        model="gpt-4o-mini",
+        messages=[{"role": "user", "content": prompt}],
+        temperature=0.2,
+    )
+
+    return response["choices"][0]["message"]["content"]
+
+
 
 # ---------------------------------------------------------
 # PAGE CONFIG
@@ -305,10 +342,16 @@ def screen_results():
     st.subheader(f"Score: {quiz.score}/{quiz.num_q} ({percent:.1f}%)")
 
     if quiz.wrong:
-        st.subheader("Incorrect Answers")
-        for correct, chosen in quiz.wrong:
-            shown = chosen if chosen is not None else "No answer"
-            st.write(f"❌ {shown} → {correct}")
+    st.subheader("Incorrect Answers")
+
+    for correct, chosen in quiz.wrong:
+        shown = chosen if chosen is not None else "No answer"
+
+        with st.expander(f"❌ {shown} → {correct}"):
+            with st.spinner("Analyzing differences..."):
+                summary = ai_difference_summary(correct, chosen)
+            st.markdown(summary)
+
     else:
         st.success("Perfect score!")
 
