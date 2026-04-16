@@ -1,6 +1,7 @@
 # VACR_Quiz
 
 <h2>Changelog</h2>
++ Version 1.2 build 7: Removed the AI explanations given how now days all their models are payware -.-"<br>
 + Version 1.2 build zero: A few bugfixes, and added AI explanation of wrong answers when you click them at the end of the quiz.<br>
 + Version 1.1 build zero: Ported to streamlit for unified access via any computer and mobile devices. Link: https://vacrquiz-pfnbpvqtgumek3nrbfkhql.streamlit.app/<br>
 + Version 1.0 build zero released for both the VACR and the Hotlist_Manager apps.<br>
