@@ -50,7 +50,7 @@ Keep it short, clear, and training-focused.
 
     try:
         response = client.chat.completions.create(
-            model="llama3-8b",
+            model="llama3-8b-preview",
             messages=[{"role": "user", "content": prompt}],
             temperature=0.2,
         )
