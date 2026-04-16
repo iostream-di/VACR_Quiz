@@ -69,5 +69,5 @@ This is neat little engine. If I generalize the naming conventions of the tools 
 <br>
 <br>
 <h2>Developers</h2>
-Coding and initial content push: SGT David "Marty" Martinez <br>
-Additional resources and consultation: SSG Jacob Clark (Air Defense Artillery Instructor)<br>
+Developer: SGT David "Marty" Martinez <br>
+Additional resources, consultation, and verification: SSG Jacob Clark, SSG Dean Evans (Air Defense Artillery Instructors)<br>

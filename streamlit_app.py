@@ -162,7 +162,22 @@ def screen_menu():
     hotlists = load_hotlist_folders()
     chosen = st.selectbox("Hotlist", hotlists)
 
-    num_q = st.slider("Number of aircraft", 1, 50, 20)
+    # Load selected hotlist to determine max aircraft
+    categories, _ = load_hotlist(chosen)
+    max_aircraft = len(categories)
+
+    # Safety: if hotlist is empty, prevent quiz start
+    if max_aircraft == 0:
+        st.error("This hotlist has no aircraft. Add aircraft in the manager app.")
+        return
+
+    num_q = st.slider(
+        "Number of aircraft",
+        1,
+        max_aircraft,
+        min(20, max_aircraft)
+    )
+
     difficulty = st.selectbox("Difficulty", ["Easy", "Standard", "Warfighter", "AI"])
     num_choices = st.slider("Choices per question", 4, 6, 4)
 
@@ -174,6 +189,7 @@ def screen_menu():
         st.session_state.last_state = None
         st.session_state.selected_choice = None
         st.rerun()
+
 
 # ---------------------------------------------------------
 # SCREEN 2 — QUIZ
