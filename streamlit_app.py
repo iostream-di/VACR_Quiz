@@ -9,6 +9,16 @@ from PIL import Image
 # PAGE CONFIG
 # ---------------------------------------------------------
 st.set_page_config(page_title="Marty's VACR QUIZ", layout="wide", page_icon="✈️")
+st.markdown("""
+    <style>
+    /* Remove mobile browser auto-focus highlight */
+    button:focus {
+        outline: none !important;
+        box-shadow: none !important;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
 
 # ---------------------------------------------------------
 # VACR IMAGE SCALING
