@@ -4,8 +4,9 @@ from pathlib import Path
 import random
 import time
 from PIL import Image
-from groq import Groq
-client = Groq(api_key=st.secrets["GROQ_API_KEY"])
+from openai import OpenAI
+client = OpenAI(api_key=st.secrets["DEEPINFRA_API_KEY"], base_url="https://api.deepinfra.com/v1/openai")
+
 
 # ---------------------------------------------------------
 # PAGE CONFIG
@@ -50,12 +51,9 @@ Keep it short, clear, and training-focused.
 
     try:
         response = client.chat.completions.create(
-            model="openai/gpt-oss-120b",
+            model="meta-llama/Meta-Llama-3.1-8B-Instruct",
             messages=[{"role": "user", "content": prompt}],
             temperature=0.2,
-            max_completion_tokens=8192,
-            top_p=1,
-            reasoning_effort="medium",
         )
         return response.choices[0].message["content"]
 
