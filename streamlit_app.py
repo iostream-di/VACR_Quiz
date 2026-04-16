@@ -5,7 +5,11 @@ import random
 import time
 from PIL import Image
 from openai import OpenAI
-client = OpenAI(api_key=st.secrets["DEEPINFRA_API_KEY"], base_url="https://api.deepinfra.com/v1/openai")
+client = OpenAI(
+    api_key=st.secrets["HF_API_KEY"],
+    base_url="https://api-inference.huggingface.co/v1/"
+)
+
 
 
 # ---------------------------------------------------------
