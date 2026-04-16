@@ -4,7 +4,8 @@ from pathlib import Path
 import random
 import time
 from PIL import Image
-import openai
+from openai import OpenAI
+client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 
 # ---------------------------------------------------------
 # PAGE CONFIG
@@ -24,8 +25,6 @@ st.markdown("""
 # ---------------------------------------------------------
 # OPENAI SETUP
 # ---------------------------------------------------------
-openai.api_key = st.secrets["OPENAI_API_KEY"]
-
 def ai_difference_summary(correct, chosen):
     if chosen is None:
         return f"You did not select an answer. The correct aircraft was **{correct}**."
@@ -50,12 +49,12 @@ Keep it short, clear, and training-focused.
 """
 
     try:
-        response = openai.ChatCompletion.create(
+        response = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[{"role": "user", "content": prompt}],
             temperature=0.2,
         )
-        return response["choices"][0]["message"]["content"]
+        return response.choices[0].message.content
 
     except Exception as e:
         return f"AI summary unavailable. Error: {e}"
