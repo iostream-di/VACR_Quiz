@@ -1,0 +1,19 @@
+UH-60 Blackhawk | Helicopter
+MD-500 Defender | Helicopter
+CH-53 Sea Stallion | Helicopter
+CH-47 Chinook | Helicopter
+AH-64 Apache | Helicopter
+AH-1 Cobra | Helicopter
+MV-22 Osprey | Helicopter
+A129 Mangusta | Helicopter
+MI-26 Halo | Helicopter
+NH-90 | Helicopter
+SA-330 Puma | Helicopter
+PAH-2 Tiger | Helicopter
+MI-28 Havoc | Helicopter
+MI-24 Hind | Helicopter
+MI-8 Hip | Helicopter
+MI-2 Hoplite | Helicopter
+WG-13 Lynx | Helicopter
+KA-50 Hokum | Helicopter
+Harbin Z-9 | Helicopter

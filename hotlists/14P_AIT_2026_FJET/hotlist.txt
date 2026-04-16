@@ -1,0 +1,17 @@
+F-14 Tomcat | Fighter
+F-15 Eagle | Fighter
+F-22 Raptor | Fighter
+F-35 Lightning | Fighter
+A/V-8 Harrier | Fighter
+A-10 Thunderbolt | Fighter
+F-16 Fighting Falcon | Fighter
+F/A-18 Hornet | Fighter
+JAS-39 Gripen | Fighter
+MIG-31 Foxhound | Fighter
+Rafale | Fighter
+MIG-29 Fulcrum | Fighter
+SU-27 Flanker | Fighter
+Alpha Jet | Fighter
+F-7P Airguard | Fighter
+J-10 Anihilator | Fighter
+JF-17 Thunder | Fighter
