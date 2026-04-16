@@ -26,25 +26,13 @@ st.markdown("""
 def scale_vacr_pil(img, max_w, max_h):
     w, h = img.size
 
-    if h > w:
-        scale = max_h / h
-    else:
-        scale = max_w / w
+    scale = min(max_w / w, max_h / h)
 
     new_w = int(w * scale)
     new_h = int(h * scale)
 
-    if new_w > max_w:
-        scale = max_w / new_w
-        new_w = int(new_w * scale)
-        new_h = int(new_h * scale)
-
-    if new_h > max_h:
-        scale = max_h / new_h
-        new_h = int(new_h * scale)
-        new_w = int(new_w * scale)
-
     return img.resize((new_w, new_h), Image.LANCZOS)
+
 
 # ---------------------------------------------------------
 # LOAD HOTLIST FOLDERS
