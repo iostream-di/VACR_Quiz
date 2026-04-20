@@ -167,7 +167,28 @@ def screen_menu():
     chosen = st.selectbox("Hotlist", hotlists)
 
     categories, _ = load_hotlist(chosen)
-    max_aircraft = len(categories)
+
+    # Extract unique categories
+    unique_cats = sorted(set(categories.values()))
+
+    st.subheader("Select Categories")
+    cat_states = {}
+    cols = st.columns(3)
+    for i, cat in enumerate(unique_cats):
+        with cols[i % 3]:
+            cat_states[cat] = st.toggle(cat, value=True)
+
+    # Filter models based on toggles
+    filtered_models = [
+        m for m, c in categories.items()
+        if cat_states.get(c, False)
+    ]
+
+    max_aircraft = len(filtered_models)
+
+    if max_aircraft == 0:
+        st.error("No aircraft available with the selected categories.")
+        return
 
     num_q = st.slider("Number of aircraft", 1, max_aircraft, min(20, max_aircraft))
     difficulty = st.selectbox("Difficulty", ["Easy", "Standard", "Warfighter", "AI"])
@@ -175,12 +196,13 @@ def screen_menu():
 
     if st.button("Start Quiz"):
         st.session_state.screen = "quiz"
-        st.session_state.quiz_settings = (chosen, num_q, difficulty, num_choices)
+        st.session_state.quiz_settings = (chosen, num_q, difficulty, num_choices, cat_states)
         st.session_state.quiz = None
         st.session_state.phase_start = None
         st.session_state.last_state = None
         st.session_state.selected_choice = None
         st.rerun()
+
 
 # ---------------------------------------------------------
 # SCREEN 2 — QUIZ
@@ -189,14 +211,22 @@ def screen_quiz():
     st_autorefresh(interval=1000, key="quiz_tick")
 
     if "quiz" not in st.session_state or st.session_state.quiz is None:
-        chosen, num_q, difficulty, num_choices = st.session_state.quiz_settings
+        chosen, num_q, difficulty, num_choices, cat_states = st.session_state.quiz_settings
         categories, img_dir = load_hotlist(chosen)
-        models = list(categories.keys())
+
+        # Filter models by selected categories
+        models = [
+            m for m, c in categories.items()
+            if cat_states.get(c, False)
+        ]
+
         images = load_images(img_dir, models)
+
         st.session_state.quiz = Quiz(models, categories, images, num_q, difficulty, num_choices)
         st.session_state.phase_start = None
         st.session_state.last_state = None
         st.session_state.selected_choice = None
+
 
     quiz = st.session_state.quiz
 
