@@ -1,3 +1,24 @@
+# ======================================================================
+#  VACR (Visual Aircraft Recognition QUIZ) app
+#  Author: David "Marty" Martinez (dmartinez61789@gmail.com / david.a.martinez291.mil@army.mil)
+#  Purpose: Streamlit-based quiz app for students seeking to improve their VACR techniques.
+#
+#  Description:
+#     This application provides a clean interface for students to:
+#       • Test their profeciency identifying aircrafts
+#       • Improve their quick recognition skills with varied difficulty settings
+#       • Focus on specific category of aircrafts
+#       • (Future) AI-assisted comparison summary of wrong answers at the end of the quiz
+#
+#  Notes:
+#     • AI-assisted comparison summary only works with valid AI tokens.
+#     • Slow bandwidth users might observe the timer elapsing before the image fully loads.
+#
+#  Version: 2.0
+#  Last Updated: April 2026
+# ======================================================================
+
+
 import streamlit as st
 from streamlit_autorefresh import st_autorefresh
 from pathlib import Path
@@ -40,17 +61,18 @@ def scale_vacr_pil(img, max_w, max_h):
 def load_hotlist_folders():
     base = Path("hotlists")
     base.mkdir(exist_ok=True)
-    folders = [f.name for f in base.iterdir() if f.is_dir() and (f / "hotlist.txt").exists()]
-    folders.sort()
-    return folders
+
+    # Return list of .txt files without extension
+    files = [f.stem for f in base.glob("*.txt")]
+    files.sort()
+    return files
 
 # ---------------------------------------------------------
 # LOAD HOTLIST DATA
 # ---------------------------------------------------------
-def load_hotlist(folder):
-    base = Path("hotlists") / folder
-    hotlist_path = base / "hotlist.txt"
-    img_dir = base / "imgs"
+def load_hotlist(name):
+    hotlist_path = Path("hotlists") / f"{name}.txt"
+    img_dir = Path("imgs")  # global image directory
 
     categories = {}
     with open(hotlist_path, "r", encoding="utf-8") as f:
@@ -69,8 +91,13 @@ def load_images(img_dir, models):
     images = {}
     for model in models:
         safe = model.replace(" ", "_").replace("/", "_").lower()
-        files = sorted(list(img_dir.glob(f"{safe}__*.*")))
-        images[model] = files
+        folder = img_dir / safe
+
+        if folder.exists() and folder.is_dir():
+            images[model] = sorted(folder.glob("*.*"))
+        else:
+            images[model] = []
+
     return images
 
 # ---------------------------------------------------------
@@ -161,7 +188,28 @@ def screen_menu():
     chosen = st.selectbox("Hotlist", hotlists)
 
     categories, _ = load_hotlist(chosen)
-    max_aircraft = len(categories)
+
+    # Extract unique categories
+    unique_cats = sorted(set(categories.values()))
+
+    st.subheader("Select Categories")
+    cat_states = {}
+    cols = st.columns(3)
+    for i, cat in enumerate(unique_cats):
+        with cols[i % 3]:
+            cat_states[cat] = st.toggle(cat, value=True)
+
+    # Filter models based on toggles
+    filtered_models = [
+        m for m, c in categories.items()
+        if cat_states.get(c, False)
+    ]
+
+    max_aircraft = len(filtered_models)
+
+    if max_aircraft == 0:
+        st.error("No aircraft available with the selected categories.")
+        return
 
     num_q = st.slider("Number of aircraft", 1, max_aircraft, min(20, max_aircraft))
     difficulty = st.selectbox("Difficulty", ["Easy", "Standard", "Warfighter", "AI"])
@@ -169,12 +217,13 @@ def screen_menu():
 
     if st.button("Start Quiz"):
         st.session_state.screen = "quiz"
-        st.session_state.quiz_settings = (chosen, num_q, difficulty, num_choices)
+        st.session_state.quiz_settings = (chosen, num_q, difficulty, num_choices, cat_states)
         st.session_state.quiz = None
         st.session_state.phase_start = None
         st.session_state.last_state = None
         st.session_state.selected_choice = None
         st.rerun()
+
 
 # ---------------------------------------------------------
 # SCREEN 2 — QUIZ
@@ -183,14 +232,22 @@ def screen_quiz():
     st_autorefresh(interval=1000, key="quiz_tick")
 
     if "quiz" not in st.session_state or st.session_state.quiz is None:
-        chosen, num_q, difficulty, num_choices = st.session_state.quiz_settings
+        chosen, num_q, difficulty, num_choices, cat_states = st.session_state.quiz_settings
         categories, img_dir = load_hotlist(chosen)
-        models = list(categories.keys())
+
+        # Filter models by selected categories
+        models = [
+            m for m, c in categories.items()
+            if cat_states.get(c, False)
+        ]
+
         images = load_images(img_dir, models)
+
         st.session_state.quiz = Quiz(models, categories, images, num_q, difficulty, num_choices)
         st.session_state.phase_start = None
         st.session_state.last_state = None
         st.session_state.selected_choice = None
+
 
     quiz = st.session_state.quiz
 

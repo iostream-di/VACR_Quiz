@@ -1,6 +1,15 @@
 # VACR_Quiz
+<h3>https://vacrquiz-pfnbpvqtgumek3nrbfkhql.streamlit.app</h3>
 
 <h2>Changelog</h2>
++ Version 2.0 is out!<br>
+--> Added category selection in the UI.<br>
+--> Added Hotlist Manager Tool.<br>
+--> Added Image Manager Tool.<br>
+--> Restructured images to the /imgs archive.<br>
+--> Restructured hotlists to the /hotlists archive.<br>
+--> A few general bugfixes.<br>
+--> AI-assistant will be re-implemented in a future release.<br>
 + Version 1.2 build 7: Removed the AI explanations given how now days all their models are payware -.-"<br>
 + Version 1.2 build zero: A few bugfixes, and added AI explanation of wrong answers when you click them at the end of the quiz.<br>
 + Version 1.1 build zero: Ported to streamlit for unified access via any computer and mobile devices. Link: https://vacrquiz-pfnbpvqtgumek3nrbfkhql.streamlit.app/<br>
