@@ -1,0 +1,50 @@
+F-14 Tomcat | Fighter
+F-15 Eagle | Fighter
+A/V-8 Harrier | Fighter
+F-16 Fighting Falcon | Fighter
+F/A-18 Hornet | Fighter
+JAS-39 Gripen | Fighter
+MIG-31 Foxhound | Fighter
+Rafale | Fighter
+MIG-29 Fulcrum | Fighter
+SU-27 Flanker | Fighter
+F-7P Airguard | Fighter
+J-10 Anihilator | Fighter
+JF-17 Thunder | Fighter
+J-20 Black Eagle | Fighter
+SU-30MK | Fighter
+MIG-27 Flogger | Fighter
+JH-7A | Fighter
+C-17 Globemaster | Transport
+AN-12 Cub | Transport
+AN-2 Colt | Transport
+Y-8G | Transport
+IL-76 Candid | Transport
+Y-20 | Transport
+UH-60 Blackhawk | Helicopter
+CH-53 Sea Stallion | Helicopter
+AH-64 Apache | Helicopter
+A129 Mangusta | Helicopter
+MI-26 Halo | Helicopter
+NH-90 | Helicopter
+SA-330 Puma | Helicopter
+PAH-2 Tiger | Helicopter
+MI-28 Havoc | Helicopter
+MI-24 Hind | Helicopter
+MI-8 Hip | Helicopter
+MI-2 Hoplite | Helicopter
+WG-13 Lynx | Helicopter
+KA-50 Hokum | Helicopter
+Harbin Z-9 | Helicopter
+Z-20 | Helicopter
+WZ-19 | Helicopter
+WZ-10 | Helicopter
+WZ-7 Soaring Dragon | UAV
+MQ-5B Hunter | UAV
+RQ-2 Pioneer | UAV
+Tomahawk H16-V12 | UAV
+RQ-7B Shadow | UAV
+MQ-9 Reaper | UAV
+MQ-8 Fire Scout | UAV
+CR500 RW UAV | UAV
+Schmel-1 Yak-061 | UAV
