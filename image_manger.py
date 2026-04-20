@@ -1,3 +1,35 @@
+# ======================================================================
+#  HOTLIST MANAGER APPLICATION
+#  Author: David "Marty" Martinez (dmartinez61789@gmail.com / david.a.martinez291.mil@army.mil)
+#  Purpose: Streamlit-based tool for importing, editing, and exporting
+#           VACR hotlists used in aircraft recognition training.
+#
+#  Description:
+#     This application provides a clean interface for instructors to:
+#       • Load existing hotlists from /hotlists/*.txt
+#       • Import new hotlists from text files
+#       • Add, edit, and remove aircraft/category entries
+#       • Export updated hotlists back to .txt format
+#
+#     Hotlist Format:
+#         Each line follows the structure:
+#             <Aircraft Name>|<Category>
+#
+#     Example:
+#         F-16C | Fighter
+#         C-17A | Cargo
+#         MQ-9 Reaper | UAV
+#
+#  Notes:
+#     • This tool manages ONLY text-based hotlists.
+#     • Image management is handled separately in the Image Manager app.
+#     • All hotlists are stored in the /hotlists directory.
+#
+#  Version: 1.0
+#  Last Updated: April 2026
+# ======================================================================
+
+
 import streamlit as st
 from pathlib import Path
 from PIL import Image
@@ -34,7 +66,7 @@ def load_images(name):
 # ---------------------------------------------------------
 # UI
 # ---------------------------------------------------------
-st.title("📸 Aircraft Image Manager")
+st.title("VACR: Aircraft Image Manager")
 
 aircraft_list = list_aircraft()
 
