@@ -19,10 +19,11 @@
 #     • Hotlist management is handled separately in the Hotlist Manager app.
 #     • All images are stored in the /imgs directory, inside the aircraft's name folder.
 #
-#  Version: 1.1
+#  Version: 1.2
 #  Last Updated: April 2026
 #
 #  Changelog:
+#  1.2 - UI shows count of aircraft total, and by type.
 #  1.1 - Locked in categories to prevent typos in a freetext field.
 # ======================================================================
 
@@ -100,6 +101,29 @@ if not selected:
     st.stop()
 
 categories = load_hotlist(selected)
+
+# ---------------------------------------------------------
+# CATEGORY SUMMARY
+# ---------------------------------------------------------
+st.subheader("Category Summary")
+
+# Count aircraft by category
+cat_counts = {}
+for ac, cat in categories.items():
+    cat_counts[cat] = cat_counts.get(cat, 0) + 1
+
+total_count = sum(cat_counts.values())
+
+# Display summary
+cols = st.columns(3)
+i = 0
+for cat, count in sorted(cat_counts.items()):
+    with cols[i % 3]:
+        st.metric(label=cat, value=count)
+    i += 1
+
+st.metric(label="Total Aircraft", value=total_count)
+
 
 # ---------------------------------------------------------
 # IMPORT HOTLIST
