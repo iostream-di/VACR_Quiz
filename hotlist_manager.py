@@ -19,8 +19,11 @@
 #     • Hotlist management is handled separately in the Hotlist Manager app.
 #     • All images are stored in the /imgs directory, inside the aircraft's name folder.
 #
-#  Version: 1.0
+#  Version: 1.1
 #  Last Updated: April 2026
+#
+#  Changelog:
+#  1.1 - Locked in categories to prevent typos in a freetext field.
 # ======================================================================
 
 
@@ -31,6 +34,16 @@ st.set_page_config(page_title="Hotlist Manager", layout="wide")
 
 HOTLIST_DIR = Path("hotlists")
 HOTLIST_DIR.mkdir(exist_ok=True)
+
+ALLOWED_CATEGORIES = [
+    "Fighter",
+    "Bomber",
+    "Transport",
+    "Helicopter",
+    "Recon",
+    "UAV",
+]
+
 
 # ---------------------------------------------------------
 # LOAD HOTLIST
@@ -63,7 +76,7 @@ def save_hotlist(name, categories):
 # ---------------------------------------------------------
 # MAIN UI
 # ---------------------------------------------------------
-st.title("✈️ Hotlist Manager (Import / Modify / Export)")
+st.title("VACR: Hotlist Manager")
 
 # ---------------------------------------------------------
 # HOTLIST SELECTION
@@ -118,14 +131,20 @@ st.header(f"Editing: {selected}")
 # Add new aircraft
 with st.expander("➕ Add Aircraft"):
     new_aircraft = st.text_input("Aircraft Name")
-    new_category = st.text_input("Category")
+
+    new_category = st.selectbox(
+        "Category",
+        ALLOWED_CATEGORIES,
+        key="add_cat"
+    )
 
     if st.button("Add Aircraft"):
-        if new_aircraft and new_category:
-            categories[new_aircraft] = new_category.capitalize()
+        if new_aircraft:
+            categories[new_aircraft] = new_category
             save_hotlist(selected, categories)
             st.success("Aircraft added.")
             st.rerun()
+
 
 # Edit existing aircraft
 for aircraft in list(categories.keys()):
@@ -133,14 +152,16 @@ for aircraft in list(categories.keys()):
         colA, colB = st.columns([3,1])
 
         with colA:
-            new_cat = st.text_input(
+            new_cat = st.selectbox(
                 f"Category for {aircraft}",
-                value=categories[aircraft],
+                ALLOWED_CATEGORIES,
+                index=ALLOWED_CATEGORIES.index(categories[aircraft]) 
+                    if categories[aircraft] in ALLOWED_CATEGORIES else 0,
                 key=f"cat_{aircraft}"
             )
 
             if st.button(f"Save {aircraft}", key=f"save_{aircraft}"):
-                categories[aircraft] = new_cat.capitalize()
+                categories[aircraft] = new_cat
                 save_hotlist(selected, categories)
                 st.success("Updated.")
                 st.rerun()
@@ -152,13 +173,14 @@ for aircraft in list(categories.keys()):
                 st.success("Deleted.")
                 st.rerun()
 
+
 # ---------------------------------------------------------
 # EXPORT HOTLIST
 # ---------------------------------------------------------
 st.subheader("Export Hotlist")
 
 st.download_button(
-    label="💾 Download hotlist.txt",
+    label="💾 Download hotlist",
     data=open(HOTLIST_DIR / f"{selected}.txt", "rb").read(),
     file_name=f"{selected}.txt",
     mime="text/plain"
