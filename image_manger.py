@@ -89,19 +89,33 @@ def github_create_folder_if_missing(aircraft):
     pass
 
 def github_upload_image(aircraft, filename, file_bytes):
-    """Upload image to GitHub."""
+    """Upload or overwrite an image in GitHub."""
     encoded = base64.b64encode(file_bytes).decode()
     path = f"{github_folder_path(aircraft)}/{filename}"
-
     url = f"https://api.github.com/repos/{REPO}/contents/{path}"
 
-    payload = {
-        "message": f"Add {filename}",
-        "content": encoded,
-        "branch": BRANCH
-    }
+    # Step 1 — Check if file already exists
+    check = requests.get(url, headers=HEADERS)
+
+    if check.status_code == 200:
+        # File exists → must include SHA
+        sha = check.json()["sha"]
+        payload = {
+            "message": f"Update {filename}",
+            "content": encoded,
+            "branch": BRANCH,
+            "sha": sha
+        }
+    else:
+        # File does not exist → create new
+        payload = {
+            "message": f"Add {filename}",
+            "content": encoded,
+            "branch": BRANCH
+        }
 
     return requests.put(url, json=payload, headers=HEADERS)
+
 
 def github_delete_image(path, sha):
     """Delete an image from GitHub."""
