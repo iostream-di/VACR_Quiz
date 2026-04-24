@@ -27,16 +27,11 @@
 #  1.1 - Locked in categories to prevent typos in a freetext field.
 # ======================================================================
 
-
 import streamlit as st
-from pathlib import Path
 import base64
 import requests
 
 st.set_page_config(page_title="Hotlist Manager", layout="wide")
-
-HOTLIST_DIR = Path("hotlists")
-HOTLIST_DIR.mkdir(exist_ok=True)
 
 ALLOWED_CATEGORIES = [
     "Fighter",
@@ -48,71 +43,109 @@ ALLOWED_CATEGORIES = [
 ]
 
 # ---------------------------------------------------------
-# GitHub Save
+# GitHub Configuration
 # ---------------------------------------------------------
 TOKEN = st.secrets["GITHUB_TOKEN"]
 REPO = st.secrets["GITHUB_REPO"]
 BRANCH = st.secrets["GITHUB_BRANCH"]
-IMG_PATH = st.secrets["GITHUB_IMG_PATH"]
 
-def upload_to_github(filename, file_bytes):
-    url = f"https://api.github.com/repos/{REPO}/contents/{IMG_PATH}/{filename}"
+HOTLIST_PATH = "hotlists"
 
-    # Convert to Base64
-    encoded = base64.b64encode(file_bytes).decode()
-
-    payload = {
-        "message": f"Add {filename}",
-        "content": encoded,
-        "branch": BRANCH
-    }
-
-    headers = {
-        "Authorization": f"Bearer {TOKEN}",
-        "Accept": "application/vnd.github+json"
-    }
-
-    response = requests.put(url, json=payload, headers=headers)
-
-    return response
+HEADERS = {
+    "Authorization": f"Bearer {TOKEN}",
+    "Accept": "application/vnd.github+json"
+}
 
 # ---------------------------------------------------------
-# LOAD HOTLIST
+# GitHub Helpers
 # ---------------------------------------------------------
-def load_hotlist(name):
-    path = HOTLIST_DIR / f"{name}.txt"
-    categories = {}
+def github_file_url(name):
+    return f"https://api.github.com/repos/{REPO}/contents/{HOTLIST_PATH}/{name}.txt"
 
-    if not path.exists():
+def github_list_hotlists():
+    """Return list of hotlist names from GitHub."""
+    url = f"https://api.github.com/repos/{REPO}/contents/{HOTLIST_PATH}"
+    r = requests.get(url, headers=HEADERS)
+
+    if r.status_code != 200:
+        return []
+
+    return sorted([item["name"].replace(".txt", "") for item in r.json() if item["name"].endswith(".txt")])
+
+def github_load_hotlist(name):
+    """Load hotlist text from GitHub."""
+    url = github_file_url(name)
+    r = requests.get(url, headers=HEADERS)
+
+    if r.status_code != 200:
         return {}
 
-    with open(path, "r", encoding="utf-8") as f:
-        for line in f:
-            if "|" not in line:
-                continue
-            aircraft, cat = line.strip().split("|", 1)
-            categories[aircraft.strip()] = cat.strip().capitalize()
+    content = base64.b64decode(r.json()["content"]).decode("utf-8")
+
+    categories = {}
+    for line in content.splitlines():
+        if "|" not in line:
+            continue
+        aircraft, cat = line.strip().split("|", 1)
+        categories[aircraft.strip()] = cat.strip().capitalize()
 
     return categories
 
-# ---------------------------------------------------------
-# SAVE HOTLIST
-# ---------------------------------------------------------
-def save_hotlist(name, categories):
-    path = HOTLIST_DIR / f"{name}.txt"
-    with open(path, "w", encoding="utf-8") as f:
-        for aircraft, cat in categories.items():
-            f.write(f"{aircraft}|{cat}\n")
+def github_save_hotlist(name, categories):
+    """Create or update a hotlist in GitHub."""
+    url = github_file_url(name)
+
+    # Convert dict to text
+    text = "\n".join(f"{ac}|{cat}" for ac, cat in categories.items())
+    encoded = base64.b64encode(text.encode()).decode()
+
+    # Check if file exists
+    check = requests.get(url, headers=HEADERS)
+
+    if check.status_code == 200:
+        sha = check.json()["sha"]
+        payload = {
+            "message": f"Update hotlist {name}",
+            "content": encoded,
+            "branch": BRANCH,
+            "sha": sha
+        }
+    else:
+        payload = {
+            "message": f"Add hotlist {name}",
+            "content": encoded,
+            "branch": BRANCH
+        }
+
+    return requests.put(url, json=payload, headers=HEADERS)
+
+def github_delete_hotlist(name):
+    """Delete a hotlist from GitHub."""
+    url = github_file_url(name)
+    check = requests.get(url, headers=HEADERS)
+
+    if check.status_code != 200:
+        return
+
+    sha = check.json()["sha"]
+
+    payload = {
+        "message": f"Delete hotlist {name}",
+        "sha": sha,
+        "branch": BRANCH
+    }
+
+    requests.delete(url, json=payload, headers=HEADERS)
 
 # ---------------------------------------------------------
 # MAIN UI
 # ---------------------------------------------------------
-st.title("VACR: Hotlist Manager")
+st.title("VACR: Hotlist Manager (GitHub‑Backed)")
 
 # ---------------------------------------------------------
 # HOTLIST SELECTION
 # ---------------------------------------------------------
-hotlists = sorted([f.stem for f in HOTLIST_DIR.glob("*.txt")])
+hotlists = github_list_hotlists()
 
 col1, col2 = st.columns([3,1])
 
@@ -120,31 +153,29 @@ with col1:
     selected = st.selectbox("Select Hotlist", hotlists)
 
 with col2:
-    if st.button("➕ New Hotlist"):
-        new_name = st.text_input("Enter new hotlist name:", key="new_hotlist_name")
+    new_name = st.text_input("➕ New Hotlist Name")
+    if st.button("Create Hotlist"):
         if new_name:
-            save_hotlist(new_name, {})
+            github_save_hotlist(new_name, {})
             st.success(f"Created hotlist: {new_name}")
             st.rerun()
 
 if not selected:
     st.stop()
 
-categories = load_hotlist(selected)
+categories = github_load_hotlist(selected)
 
 # ---------------------------------------------------------
 # CATEGORY SUMMARY
 # ---------------------------------------------------------
 st.subheader("Category Summary")
 
-# Count aircraft by category
 cat_counts = {}
 for ac, cat in categories.items():
     cat_counts[cat] = cat_counts.get(cat, 0) + 1
 
 total_count = sum(cat_counts.values())
 
-# Display summary
 cols = st.columns(3)
 i = 0
 for cat, count in sorted(cat_counts.items()):
@@ -153,7 +184,6 @@ for cat, count in sorted(cat_counts.items()):
     i += 1
 
 st.metric(label="Total Aircraft", value=total_count)
-
 
 # ---------------------------------------------------------
 # IMPORT HOTLIST
@@ -172,8 +202,7 @@ if uploaded:
         aircraft, cat = line.strip().split("|", 1)
         new_cats[aircraft.strip()] = cat.strip().capitalize()
 
-    categories = new_cats
-    save_hotlist(selected, categories)
+    github_save_hotlist(selected, new_cats)
     st.success("Hotlist imported successfully.")
     st.rerun()
 
@@ -195,10 +224,9 @@ with st.expander("➕ Add Aircraft"):
     if st.button("Add Aircraft"):
         if new_aircraft:
             categories[new_aircraft] = new_category
-            save_hotlist(selected, categories)
+            github_save_hotlist(selected, categories)
             st.success("Aircraft added.")
             st.rerun()
-
 
 # Edit existing aircraft
 for aircraft in list(categories.keys()):
@@ -209,33 +237,34 @@ for aircraft in list(categories.keys()):
             new_cat = st.selectbox(
                 f"Category for {aircraft}",
                 ALLOWED_CATEGORIES,
-                index=ALLOWED_CATEGORIES.index(categories[aircraft]) 
+                index=ALLOWED_CATEGORIES.index(categories[aircraft])
                     if categories[aircraft] in ALLOWED_CATEGORIES else 0,
                 key=f"cat_{aircraft}"
             )
 
             if st.button(f"Save {aircraft}", key=f"save_{aircraft}"):
                 categories[aircraft] = new_cat
-                save_hotlist(selected, categories)
+                github_save_hotlist(selected, categories)
                 st.success("Updated.")
                 st.rerun()
 
         with colB:
             if st.button(f"❌ Delete {aircraft}", key=f"del_{aircraft}"):
                 del categories[aircraft]
-                save_hotlist(selected, categories)
+                github_save_hotlist(selected, categories)
                 st.success("Deleted.")
                 st.rerun()
-
 
 # ---------------------------------------------------------
 # EXPORT HOTLIST
 # ---------------------------------------------------------
 st.subheader("Export Hotlist")
 
+export_text = "\n".join(f"{ac}|{cat}" for ac, cat in categories.items())
+
 st.download_button(
     label="💾 Download hotlist",
-    data=open(HOTLIST_DIR / f"{selected}.txt", "rb").read(),
+    data=export_text,
     file_name=f"{selected}.txt",
     mime="text/plain"
 )
