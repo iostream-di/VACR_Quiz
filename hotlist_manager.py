@@ -30,6 +30,8 @@
 
 import streamlit as st
 from pathlib import Path
+import base64
+import requests
 
 st.set_page_config(page_title="Hotlist Manager", layout="wide")
 
@@ -45,6 +47,34 @@ ALLOWED_CATEGORIES = [
     "UAV",
 ]
 
+# ---------------------------------------------------------
+# GitHub Save
+# ---------------------------------------------------------
+TOKEN = st.secrets["GITHUB_TOKEN"]
+REPO = st.secrets["GITHUB_REPO"]
+BRANCH = st.secrets["GITHUB_BRANCH"]
+IMG_PATH = st.secrets["GITHUB_IMG_PATH"]
+
+def upload_to_github(filename, file_bytes):
+    url = f"https://api.github.com/repos/{REPO}/contents/{IMG_PATH}/{filename}"
+
+    # Convert to Base64
+    encoded = base64.b64encode(file_bytes).decode()
+
+    payload = {
+        "message": f"Add {filename}",
+        "content": encoded,
+        "branch": BRANCH
+    }
+
+    headers = {
+        "Authorization": f"Bearer {TOKEN}",
+        "Accept": "application/vnd.github+json"
+    }
+
+    response = requests.put(url, json=payload, headers=headers)
+
+    return response
 
 # ---------------------------------------------------------
 # LOAD HOTLIST
