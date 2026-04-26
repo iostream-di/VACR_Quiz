@@ -1,7 +1,0 @@
-Mirach 100 Meteor | UAV
-MQ-5B Hunter | UAV
-RQ-2 Pioneer | UAV
-RQ-7B Shadow | UAV
-MQ-9 Reaper | UAV
-MQ-8 Fire Scout | UAV
-Schmel-1 Yak-061 | UAV
