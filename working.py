@@ -1,3 +1,24 @@
+# ======================================================================
+#  VACR (Visual Aircraft Recognition QUIZ) app
+#  Author: David "Marty" Martinez (dmartinez61789@gmail.com / david.a.martinez291.mil@army.mil)
+#  Purpose: Streamlit-based quiz app for students seeking to improve their VACR techniques.
+#
+#  Description:
+#     This application provides a clean interface for students to:
+#       • Test their profeciency identifying aircrafts
+#       • Improve their quick recognition skills with varied difficulty settings
+#       • Focus on specific category of aircrafts
+#       • (Future) AI-assisted comparison summary of wrong answers at the end of the quiz
+#
+#  Notes:
+#     • AI-assisted comparison summary only works with valid AI tokens.
+#     • Slow bandwidth users might observe the timer elapsing before the image fully loads.
+#
+#  Version: 2.0
+#  Last Updated: April 2026
+# ======================================================================
+
+
 import streamlit as st
 from streamlit_autorefresh import st_autorefresh
 from pathlib import Path
@@ -78,6 +99,7 @@ def load_images(img_dir, models):
             images[model] = []
 
     return images
+
 
 # ---------------------------------------------------------
 # QUIZ ENGINE
@@ -235,7 +257,7 @@ def screen_quiz():
         st.session_state.last_state = quiz.state
 
     if quiz.state == "image":
-        st.subheader("Look closely…")
+        st.subheader(f"{quiz.index + 1}/{quiz.num_q}: Look closely…")
 
         if quiz.current_image:
             img = Image.open(quiz.current_image)
@@ -259,7 +281,7 @@ def screen_quiz():
         return
 
     if quiz.state == "choices":
-        st.subheader("Which one was it?")
+        st.subheader(f"{quiz.index + 1}/{quiz.num_q}: Which one was it?")
 
         if st.session_state.phase_start is None:
             st.session_state.phase_start = time.time()
