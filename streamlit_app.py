@@ -14,7 +14,7 @@
 #     • AI-assisted comparison summary only works with valid AI tokens.
 #     • Slow bandwidth users might observe the timer elapsing before the image fully loads.
 #
-#  Version: 2.0
+#  Version: 2.1
 #  Last Updated: April 2026
 # ======================================================================
 
@@ -99,6 +99,7 @@ def load_images(img_dir, models):
             images[model] = []
 
     return images
+
 
 # ---------------------------------------------------------
 # QUIZ ENGINE
@@ -256,7 +257,7 @@ def screen_quiz():
         st.session_state.last_state = quiz.state
 
     if quiz.state == "image":
-        st.subheader("Look closely…")
+        st.subheader(f"{quiz.index + 1}/{quiz.num_q}: Look closely…")
 
         if quiz.current_image:
             img = Image.open(quiz.current_image)
@@ -280,7 +281,7 @@ def screen_quiz():
         return
 
     if quiz.state == "choices":
-        st.subheader("Which one was it?")
+        st.subheader(f"{quiz.index + 1}/{quiz.num_q}: Which one was it?")
 
         if st.session_state.phase_start is None:
             st.session_state.phase_start = time.time()
