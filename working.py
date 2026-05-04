@@ -18,56 +18,76 @@
 #  Last Updated: April 2026
 # ======================================================================
 
+# ======================================================================
+#  VACR (Visual Aircraft Recognition QUIZ) app
+#  Author: David "Marty" Martinez (dmartinez61789@gmail.com / david.a.martinez291.mil@army.mil)
+#  Purpose: Streamlit-based quiz app for students seeking to improve their VACR techniques.
+#
+#  Version: 2.5 (HTML renderer + cached images + safe reruns + perfect scaling)
+#  Last Updated: April 2026
+# ======================================================================
+
 import streamlit as st
 from streamlit_autorefresh import st_autorefresh
 from pathlib import Path
 import random
 import time
 from PIL import Image
+import base64
+from io import BytesIO
 
 # ---------------------------------------------------------
 # PAGE CONFIG
 # ---------------------------------------------------------
 st.set_page_config(page_title="Marty's VACR QUIZ", layout="wide", page_icon="✈️")
 
-# Global CSS
+# Remove mobile browser auto-focus highlight
 st.markdown("""
     <style>
     button:focus {
         outline: none !important;
         box-shadow: none !important;
     }
-    /* Make quiz images fit on desktop without scrolling */
-    .stImage img {
+    /* Ensure HTML-rendered images always fit on desktop */
+    .vacr-img {
         max-height: 80vh !important;
         width: auto !important;
         height: auto !important;
         object-fit: contain !important;
-        display: block;
-        margin-left: auto;
-        margin-right: auto;
+        display: block !important;
+        margin-left: auto !important;
+        margin-right: auto !important;
     }
     </style>
 """, unsafe_allow_html=True)
 
 # ---------------------------------------------------------
-# VACR IMAGE SCALING + CACHED LOADER
+# HTML IMAGE RENDERER (NO STREAMLIT IMAGE COMPONENT)
+# ---------------------------------------------------------
+def render_image_html(pil_img):
+    """Render image using raw HTML so Streamlit cannot override scaling."""
+    buf = BytesIO()
+    pil_img.save(buf, format="PNG")
+    b64 = base64.b64encode(buf.getvalue()).decode()
+
+    html = f"""
+    <div style="text-align:center;">
+        <img class="vacr-img"
+             src="data:image/png;base64,{b64}" />
+    </div>
+    """
+    st.markdown(html, unsafe_allow_html=True)
+
+# ---------------------------------------------------------
+# IMAGE SCALING + CACHED LOADER
 # ---------------------------------------------------------
 def scale_vacr_pil(img, max_w, max_h):
     w, h = img.size
     scale = min(max_w / w, max_h / h)
-    new_w = int(w * scale)
-    new_h = int(h * scale)
-    return img.resize((new_w, new_h), Image.LANCZOS)
-
+    return img.resize((int(w * scale), int(h * scale)), Image.LANCZOS)
 
 @st.cache_resource
 def load_and_scale_image(path_str, max_w=1600, max_h=900):
-    """
-    Cached image loader + scaler.
-    - Avoids re-decoding and resizing on every autorefresh tick.
-    - max_h tuned so desktop users don't have to scroll (plus CSS cap).
-    """
     img = Image.open(path_str)
     return scale_vacr_pil(img, max_w, max_h)
 
@@ -77,7 +97,6 @@ def load_and_scale_image(path_str, max_w=1600, max_h=900):
 def load_hotlist_folders():
     base = Path("hotlists")
     base.mkdir(exist_ok=True)
-
     files = [f.stem for f in base.glob("*.txt")]
     files.sort()
     return files
@@ -107,12 +126,7 @@ def load_images(img_dir, models):
     for model in models:
         safe = model.replace(" ", "_").replace("/", "_").lower()
         folder = img_dir / safe
-
-        if folder.exists() and folder.is_dir():
-            images[model] = sorted(folder.glob("*.*"))
-        else:
-            images[model] = []
-
+        images[model] = sorted(folder.glob("*.*")) if folder.exists() else []
     return images
 
 # ---------------------------------------------------------
@@ -160,7 +174,6 @@ class Quiz:
             return
 
         self.current_model = self.questions[self.index]
-
         img_list = self.images.get(self.current_model, [])
         self.current_image = random.choice(img_list) if img_list else None
 
@@ -203,7 +216,6 @@ def screen_menu():
     chosen = st.selectbox("Hotlist", hotlists)
 
     categories, _ = load_hotlist(chosen)
-
     unique_cats = sorted(set(categories.values()))
 
     st.subheader("Select Categories")
@@ -213,11 +225,7 @@ def screen_menu():
         with cols[i % 3]:
             cat_states[cat] = st.toggle(cat, value=True)
 
-    filtered_models = [
-        m for m, c in categories.items()
-        if cat_states.get(c, False)
-    ]
-
+    filtered_models = [m for m, c in categories.items() if cat_states.get(c, False)]
     max_aircraft = len(filtered_models)
 
     if max_aircraft == 0:
@@ -247,11 +255,7 @@ def screen_quiz():
         chosen, num_q, difficulty, num_choices, cat_states = st.session_state.quiz_settings
         categories, img_dir = load_hotlist(chosen)
 
-        models = [
-            m for m, c in categories.items()
-            if cat_states.get(c, False)
-        ]
-
+        models = [m for m, c in categories.items() if cat_states.get(c, False)]
         images = load_images(img_dir, models)
 
         st.session_state.quiz = Quiz(models, categories, images, num_q, difficulty, num_choices)
@@ -271,8 +275,7 @@ def screen_quiz():
 
         if quiz.current_image:
             img = load_and_scale_image(str(quiz.current_image), max_w=1600, max_h=900)
-            # Let Streamlit handle width; CSS caps height
-            st.image(img, use_column_width=True)
+            render_image_html(img)
         else:
             st.warning("No image found")
 
@@ -302,7 +305,6 @@ def screen_quiz():
         for i, choice in enumerate(quiz.choices):
             col = cols[i % 2]
             label = f"▶ {choice}" if choice == selected else choice
-
             if col.button(label, key=f"choice_{i}"):
                 st.session_state.selected_choice = choice
 
