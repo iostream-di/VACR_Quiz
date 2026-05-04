@@ -14,10 +14,9 @@
 #     • AI-assisted comparison summary only works with valid AI tokens.
 #     • Slow bandwidth users might observe the timer elapsing before the image fully loads.
 #
-#  Version: 2.0
-#  Last Updated: April 2026
+#  Version: 2.2 (patched rerun behavior)
+#  Last Updated: May 2026
 # ======================================================================
-
 
 import streamlit as st
 from streamlit_autorefresh import st_autorefresh
@@ -179,6 +178,7 @@ class Quiz:
         self.index += 1
         self.next_question()
 
+
 # ---------------------------------------------------------
 # SCREEN 1 — MENU
 # ---------------------------------------------------------
@@ -223,13 +223,14 @@ def screen_menu():
         st.session_state.phase_start = None
         st.session_state.last_state = None
         st.session_state.selected_choice = None
-        st.rerun()
+        st.rerun()  # menu → quiz is user-driven; safe single rerun
 
 
 # ---------------------------------------------------------
 # SCREEN 2 — QUIZ
 # ---------------------------------------------------------
 def screen_quiz():
+    # Autorefresh drives all timed transitions; no manual reruns inside phases
     st_autorefresh(interval=1000, key="quiz_tick")
 
     if "quiz" not in st.session_state or st.session_state.quiz is None:
@@ -249,13 +250,14 @@ def screen_quiz():
         st.session_state.last_state = None
         st.session_state.selected_choice = None
 
-
     quiz = st.session_state.quiz
 
+    # Reset phase timer when state changes
     if quiz.state != st.session_state.get("last_state"):
         st.session_state.phase_start = None
         st.session_state.last_state = quiz.state
 
+    # IMAGE PHASE
     if quiz.state == "image":
         st.subheader(f"{quiz.index + 1}/{quiz.num_q}: Look closely…")
 
@@ -274,12 +276,13 @@ def screen_quiz():
         st.progress(max(0.0, remaining) / quiz.image_time)
 
         if remaining <= 0:
+            # Transition to choices; let autorefresh handle rerun
             quiz.state = "choices"
             st.session_state.phase_start = None
             st.session_state.selected_choice = None
-            st.rerun()
         return
 
+    # CHOICES PHASE
     if quiz.state == "choices":
         st.subheader(f"{quiz.index + 1}/{quiz.num_q}: Which one was it?")
 
@@ -294,8 +297,8 @@ def screen_quiz():
             label = f"▶ {choice}" if choice == selected else choice
 
             if col.button(label, key=f"choice_{i}"):
+                # Just record selection; autorefresh will update UI
                 st.session_state.selected_choice = choice
-                st.rerun()
 
         elapsed = time.time() - st.session_state.phase_start
         remaining = quiz.choice_time - elapsed
@@ -308,15 +311,16 @@ def screen_quiz():
             st.session_state.phase_start = None
 
             if quiz.state == "finished":
+                # Move to results; next autorefresh will route there
                 st.session_state.screen = "results"
-                st.rerun()
-            else:
-                st.rerun()
+            # No manual rerun here
         return
 
+    # FINISHED STATE (safety)
     if quiz.state == "finished":
         st.session_state.screen = "results"
-        st.rerun()
+        return
+
 
 # ---------------------------------------------------------
 # SCREEN 3 — RESULTS
@@ -334,7 +338,6 @@ def screen_results():
         for correct, chosen in quiz.wrong:
             shown = chosen if chosen is not None else "No answer"
             st.markdown(f"❌ **{shown} → {correct}**")
-
     else:
         st.success("Perfect score!")
 
@@ -345,6 +348,7 @@ def screen_results():
         st.session_state.last_state = None
         st.session_state.selected_choice = None
         st.rerun()
+
 
 # ---------------------------------------------------------
 # MAIN ROUTER
