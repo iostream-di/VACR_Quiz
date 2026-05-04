@@ -60,7 +60,7 @@ header, .stApp {
 
 /* Add gentle top padding for titles so they aren't clipped */
 h1, h2, h3 {
-    padding-top: 0.6rem !important;
+    padding-top: 2.0rem !important;
 }
 
 /* Remove extra space below progress bar */
