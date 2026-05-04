@@ -249,7 +249,7 @@ def screen_menu():
         return
 
     num_q = st.slider("Number of aircraft", 1, max_aircraft, min(20, max_aircraft))
-    difficulty = st.selectbox("Difficulty", ["Easy", "Standard", "Warfighter", "AI"])
+    difficulty = st.selectbox("Difficulty", ["Easy", "Standard", "Warfighter", "AI"],index=1)
     num_choices = st.slider("Choices per question", 4, 6, 4)
 
     if st.button("Start Quiz"):
