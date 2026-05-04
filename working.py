@@ -30,23 +30,28 @@ from PIL import Image
 # ---------------------------------------------------------
 st.set_page_config(page_title="Marty's VACR QUIZ", layout="wide", page_icon="✈️")
 
-# Remove mobile browser auto-focus highlight
+# Global CSS
 st.markdown("""
     <style>
     button:focus {
         outline: none !important;
         box-shadow: none !important;
     }
-    /* Keep images fully visible on desktop without scrolling */
-    img {
-        max-height: 85vh !important;
+    /* Make quiz images fit on desktop without scrolling */
+    .stImage img {
+        max-height: 80vh !important;
+        width: auto !important;
+        height: auto !important;
         object-fit: contain !important;
+        display: block;
+        margin-left: auto;
+        margin-right: auto;
     }
     </style>
 """, unsafe_allow_html=True)
 
 # ---------------------------------------------------------
-# VACR IMAGE SCALING
+# VACR IMAGE SCALING + CACHED LOADER
 # ---------------------------------------------------------
 def scale_vacr_pil(img, max_w, max_h):
     w, h = img.size
@@ -57,15 +62,14 @@ def scale_vacr_pil(img, max_w, max_h):
 
 
 @st.cache_resource
-def load_and_scale_image(path_str, max_w=1400, max_h=800):
+def load_and_scale_image(path_str, max_w=1600, max_h=900):
     """
     Cached image loader + scaler.
     - Avoids re-decoding and resizing on every autorefresh tick.
-    - max_h tuned so desktop users don't have to scroll.
+    - max_h tuned so desktop users don't have to scroll (plus CSS cap).
     """
     img = Image.open(path_str)
     return scale_vacr_pil(img, max_w, max_h)
-
 
 # ---------------------------------------------------------
 # LOAD HOTLIST FOLDERS
@@ -74,7 +78,6 @@ def load_hotlist_folders():
     base = Path("hotlists")
     base.mkdir(exist_ok=True)
 
-    # Return list of .txt files without extension
     files = [f.stem for f in base.glob("*.txt")]
     files.sort()
     return files
@@ -84,7 +87,7 @@ def load_hotlist_folders():
 # ---------------------------------------------------------
 def load_hotlist(name):
     hotlist_path = Path("hotlists") / f"{name}.txt"
-    img_dir = Path("imgs")  # global image directory
+    img_dir = Path("imgs")
 
     categories = {}
     with open(hotlist_path, "r", encoding="utf-8") as f:
@@ -111,7 +114,6 @@ def load_images(img_dir, models):
             images[model] = []
 
     return images
-
 
 # ---------------------------------------------------------
 # QUIZ ENGINE
@@ -191,7 +193,6 @@ class Quiz:
         self.index += 1
         self.next_question()
 
-
 # ---------------------------------------------------------
 # SCREEN 1 — MENU
 # ---------------------------------------------------------
@@ -203,7 +204,6 @@ def screen_menu():
 
     categories, _ = load_hotlist(chosen)
 
-    # Extract unique categories
     unique_cats = sorted(set(categories.values()))
 
     st.subheader("Select Categories")
@@ -213,7 +213,6 @@ def screen_menu():
         with cols[i % 3]:
             cat_states[cat] = st.toggle(cat, value=True)
 
-    # Filter models based on toggles
     filtered_models = [
         m for m, c in categories.items()
         if cat_states.get(c, False)
@@ -236,21 +235,18 @@ def screen_menu():
         st.session_state.phase_start = None
         st.session_state.last_state = None
         st.session_state.selected_choice = None
-        st.rerun()  # user-driven screen change is fine
-
+        st.rerun()
 
 # ---------------------------------------------------------
 # SCREEN 2 — QUIZ
 # ---------------------------------------------------------
 def screen_quiz():
-    # Autorefresh drives all timed transitions; no manual reruns inside phases
     st_autorefresh(interval=1000, key="quiz_tick")
 
     if "quiz" not in st.session_state or st.session_state.quiz is None:
         chosen, num_q, difficulty, num_choices, cat_states = st.session_state.quiz_settings
         categories, img_dir = load_hotlist(chosen)
 
-        # Filter models by selected categories
         models = [
             m for m, c in categories.items()
             if cat_states.get(c, False)
@@ -265,7 +261,6 @@ def screen_quiz():
 
     quiz = st.session_state.quiz
 
-    # Reset phase timer when state changes
     if quiz.state != st.session_state.get("last_state"):
         st.session_state.phase_start = None
         st.session_state.last_state = quiz.state
@@ -275,9 +270,9 @@ def screen_quiz():
         st.subheader(f"{quiz.index + 1}/{quiz.num_q}: Look closely…")
 
         if quiz.current_image:
-            # Use cached loader + scaling; pass string path for hashing
-            img = load_and_scale_image(str(quiz.current_image), max_w=1400, max_h=800)
-            st.image(img, use_column_width=False)
+            img = load_and_scale_image(str(quiz.current_image), max_w=1600, max_h=900)
+            # Let Streamlit handle width; CSS caps height
+            st.image(img, use_column_width=True)
         else:
             st.warning("No image found")
 
@@ -289,7 +284,6 @@ def screen_quiz():
         st.progress(max(0.0, remaining) / quiz.image_time)
 
         if remaining <= 0:
-            # Transition to choices; let autorefresh handle rerun
             quiz.state = "choices"
             st.session_state.phase_start = None
             st.session_state.selected_choice = None
@@ -310,7 +304,6 @@ def screen_quiz():
             label = f"▶ {choice}" if choice == selected else choice
 
             if col.button(label, key=f"choice_{i}"):
-                # Just record selection; autorefresh will update UI
                 st.session_state.selected_choice = choice
 
         elapsed = time.time() - st.session_state.phase_start
@@ -324,15 +317,12 @@ def screen_quiz():
             st.session_state.phase_start = None
 
             if quiz.state == "finished":
-                # Move to results; next autorefresh will route there
                 st.session_state.screen = "results"
         return
 
-    # FINISHED STATE (safety)
     if quiz.state == "finished":
         st.session_state.screen = "results"
         return
-
 
 # ---------------------------------------------------------
 # SCREEN 3 — RESULTS
@@ -346,7 +336,6 @@ def screen_results():
 
     if quiz.wrong:
         st.subheader("Incorrect Answers")
-
         for correct, chosen in quiz.wrong:
             shown = chosen if chosen is not None else "No answer"
             st.markdown(f"❌ **{shown} → {correct}**")
@@ -360,7 +349,6 @@ def screen_results():
         st.session_state.last_state = None
         st.session_state.selected_choice = None
         st.rerun()
-
 
 # ---------------------------------------------------------
 # MAIN ROUTER
