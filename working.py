@@ -14,8 +14,8 @@
 #     • AI-assisted comparison summary only works with valid AI tokens.
 #     • Slow bandwidth users might observe the timer elapsing before the image fully loads.
 #
-#  Version: 2.2 (patched rerun behavior)
-#  Last Updated: May 2026
+#  Version: 2.3 (cached images + safe reruns + desktop fit)
+#  Last Updated: April 2026
 # ======================================================================
 
 import streamlit as st
@@ -37,6 +37,11 @@ st.markdown("""
         outline: none !important;
         box-shadow: none !important;
     }
+    /* Keep images fully visible on desktop without scrolling */
+    img {
+        max-height: 85vh !important;
+        object-fit: contain !important;
+    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -45,13 +50,21 @@ st.markdown("""
 # ---------------------------------------------------------
 def scale_vacr_pil(img, max_w, max_h):
     w, h = img.size
-
     scale = min(max_w / w, max_h / h)
-
     new_w = int(w * scale)
     new_h = int(h * scale)
-
     return img.resize((new_w, new_h), Image.LANCZOS)
+
+
+@st.cache_resource
+def load_and_scale_image(path_str, max_w=1400, max_h=800):
+    """
+    Cached image loader + scaler.
+    - Avoids re-decoding and resizing on every autorefresh tick.
+    - max_h tuned so desktop users don't have to scroll.
+    """
+    img = Image.open(path_str)
+    return scale_vacr_pil(img, max_w, max_h)
 
 
 # ---------------------------------------------------------
@@ -223,7 +236,7 @@ def screen_menu():
         st.session_state.phase_start = None
         st.session_state.last_state = None
         st.session_state.selected_choice = None
-        st.rerun()  # menu → quiz is user-driven; safe single rerun
+        st.rerun()  # user-driven screen change is fine
 
 
 # ---------------------------------------------------------
@@ -262,9 +275,9 @@ def screen_quiz():
         st.subheader(f"{quiz.index + 1}/{quiz.num_q}: Look closely…")
 
         if quiz.current_image:
-            img = Image.open(quiz.current_image)
-            img = scale_vacr_pil(img, 1600, 900)
-            st.image(img)
+            # Use cached loader + scaling; pass string path for hashing
+            img = load_and_scale_image(str(quiz.current_image), max_w=1400, max_h=800)
+            st.image(img, use_column_width=False)
         else:
             st.warning("No image found")
 
@@ -313,7 +326,6 @@ def screen_quiz():
             if quiz.state == "finished":
                 # Move to results; next autorefresh will route there
                 st.session_state.screen = "results"
-            # No manual rerun here
         return
 
     # FINISHED STATE (safety)
