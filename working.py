@@ -58,6 +58,11 @@ header, .stApp {
     margin-top: 0 !important;
 }
 
+/* Add gentle top padding for titles so they aren't clipped */
+h1, h2, h3 {
+    padding-top: 0.6rem !important;
+}
+
 /* Remove extra space below progress bar */
 .css-1kyxreq {
     margin-bottom: 0 !important;
