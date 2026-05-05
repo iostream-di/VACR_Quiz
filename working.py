@@ -19,7 +19,33 @@ st.set_page_config(page_title="Marty's VACR QUIZ", layout="wide", page_icon="✈
 # ---------------------------------------------------------
 st.markdown("""
 <style>
-/* Center all main content */
+/* Center EVERYTHING inside Streamlit columns */
+div[data-testid="column"] > div {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 100% !important;
+}
+
+/* Center all widgets inside columns */
+div[data-testid="column"] button,
+div[data-testid="column"] .stButton,
+div[data-testid="column"] .stSelectbox,
+div[data-testid="column"] .stSlider,
+div[data-testid="column"] .stToggle,
+div[data-testid="column"] img {
+    margin-left: auto !important;
+    margin-right: auto !important;
+}
+
+/* Center images globally (extra safety) */
+img.vacr-img {
+    display: block !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+}
+
 div[data-testid="column"] {
     display: flex !important;
     flex-direction: column !important;
