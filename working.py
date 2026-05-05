@@ -19,6 +19,7 @@
 # ======================================================================
 
 import streamlit as st
+from streamlit_autorefresh import st_autorefresh
 from pathlib import Path
 import random
 import time
@@ -66,31 +67,8 @@ html, body, .stApp {
     margin-left: auto !important;
     margin-right: auto !important;
 }
-
-/* Invisible auto-rerun trigger */
-#invisirun {
-    height: 0px !important;
-    width: 0px !important;
-    opacity: 0 !important;
-    pointer-events: none !important;
-}
 </style>
 """, unsafe_allow_html=True)
-
-# ---------------------------------------------------------
-# INVISIBLE AUTO-RERUN ENGINE (0.5s)
-# ---------------------------------------------------------
-st.markdown("""
-<script>
-setTimeout(function() {
-    const btn = document.getElementById("invisirun");
-    if (btn) { btn.click(); }
-}, 500);
-</script>
-""", unsafe_allow_html=True)
-
-# Hidden button that triggers rerun
-st.button(" ", key="invisirun", help="", type="secondary")
 
 # ---------------------------------------------------------
 # FULLY CACHED HTML IMAGE RENDERER
@@ -270,7 +248,7 @@ def screen_menu():
         st.rerun()
 
 # ---------------------------------------------------------
-# SCREEN 2 — QUIZ (auto-advancing silent timer)
+# SCREEN 2 — QUIZ (single-use autorefresh per phase)
 # ---------------------------------------------------------
 def screen_quiz():
     if "quiz" not in st.session_state or st.session_state.quiz is None:
@@ -285,9 +263,6 @@ def screen_quiz():
 
     quiz = st.session_state.quiz
 
-    now = time.time()
-    elapsed = now - quiz.phase_start
-
     # IMAGE PHASE
     if quiz.state == "image":
         st.subheader(f"{quiz.index + 1}/{quiz.num_q}: Look closely…")
@@ -298,12 +273,13 @@ def screen_quiz():
         else:
             st.warning("No image found")
 
-        # Auto-advance silently
-        if elapsed >= quiz.image_time:
-            quiz.state = "choices"
-            quiz.phase_start = time.time()
-            st.session_state.selected_choice = None
-            st.rerun()
+        # Single-use autorefresh
+        st_autorefresh(
+            interval=int(quiz.image_time * 1000),
+            limit=1,
+            key=f"img_{quiz.index}"
+        )
+
         return
 
     # CHOICES PHASE
@@ -316,11 +292,19 @@ def screen_quiz():
         for i, choice in enumerate(quiz.choices):
             col = cols[i % 2]
             label = f"▶ {choice}" if choice == selected else choice
-            if col.button(label, key=f"choice_{i}"):
+            if col.button(label, key=f"choice_{quiz.index}_{i}"):
                 st.session_state.selected_choice = choice
                 st.rerun()
 
-        # Auto-submit silently
+        # Single-use autorefresh for timeout
+        st_autorefresh(
+            interval=int(quiz.choice_time * 1000),
+            limit=1,
+            key=f"choice_{quiz.index}"
+        )
+
+        # If autorefresh fired, process answer
+        elapsed = time.time() - quiz.phase_start
         if elapsed >= quiz.choice_time:
             final_answer = st.session_state.get("selected_choice")
             quiz.process_answer(final_answer)
@@ -330,6 +314,7 @@ def screen_quiz():
                 st.session_state.screen = "results"
 
             st.rerun()
+
         return
 
     if quiz.state == "finished":
