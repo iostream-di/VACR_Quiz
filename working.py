@@ -37,7 +37,6 @@ st.set_page_config(page_title="Marty's VACR QUIZ", layout="wide", page_icon="✈
 # ---------------------------------------------------------
 st.markdown("""
 <style>
-/* Remove ALL default Streamlit padding */
 .block-container {
     padding-top: 0rem !important;
     padding-bottom: 0rem !important;
@@ -45,24 +44,20 @@ st.markdown("""
     padding-right: 1rem !important;
 }
 
-/* Remove top padding above title */
 header, .stApp {
     padding-top: 0 !important;
     margin-top: 0 !important;
 }
 
-/* Add gentle top padding for titles so they aren't clipped */
 h1, h2, h3 {
     padding-top: 2.0rem !important;
 }
 
-/* Force the entire app to use full viewport height */
 html, body, .stApp {
     height: 100%;
     overflow: hidden;
 }
 
-/* Image scaling class */
 .vacr-img {
     max-height: 80vh !important;
     width: auto !important;
@@ -76,49 +71,20 @@ html, body, .stApp {
 """, unsafe_allow_html=True)
 
 # ---------------------------------------------------------
-# HTML TIMER BAR (replaces st.progress)
-# ---------------------------------------------------------
-def render_timer_bar(remaining, total):
-    pct = max(0, min(1, remaining / total))
-    width = int(pct * 100)
-    bar = f"""
-    <div style="
-        width: 100%;
-        height: 18px;
-        background-color: #333;
-        border-radius: 4px;
-        overflow: hidden;
-        margin-top: 0.5rem;
-        margin-bottom: 0.5rem;">
-        <div style="
-            width: {width}%;
-            height: 100%;
-            background-color: #4CAF50;
-            transition: width 0.3s linear;">
-        </div>
-    </div>
-    """
-    st.markdown(bar, unsafe_allow_html=True)
-
-# ---------------------------------------------------------
 # FULLY CACHED HTML IMAGE RENDERER
 # ---------------------------------------------------------
 @st.cache_resource
 def get_cached_image_html(path_str, max_w=1600, max_h=900):
-    """Load, scale, encode, and HTML-wrap the image ONCE."""
     img = Image.open(path_str)
 
-    # Scale
     w, h = img.size
     scale = min(max_w / w, max_h / h)
     img = img.resize((int(w * scale), int(h * scale)), Image.LANCZOS)
 
-    # Encode
     buf = BytesIO()
     img.save(buf, format="PNG")
     b64 = base64.b64encode(buf.getvalue()).decode()
 
-    # Final HTML (cached)
     return f"""
     <div style="text-align:center;">
         <img class="vacr-img"
@@ -319,7 +285,6 @@ def screen_quiz():
 
         elapsed = time.time() - st.session_state.phase_start
         remaining = quiz.image_time - elapsed
-        render_timer_bar(remaining, quiz.image_time)
 
         if remaining <= 0:
             quiz.state = "choices"
@@ -346,7 +311,6 @@ def screen_quiz():
 
         elapsed = time.time() - st.session_state.phase_start
         remaining = quiz.choice_time - elapsed
-        render_timer_bar(remaining, quiz.choice_time)
 
         if remaining <= 0:
             final_answer = st.session_state.get("selected_choice")
