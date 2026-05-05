@@ -323,6 +323,7 @@ def screen_quiz():
             label = f"▶ {choice}" if choice == selected else choice
             if col.button(label, key=f"choice_{i}"):
                 st.session_state.selected_choice = choice
+                st.rerun()  # immediate visual update
 
         elapsed = time.time() - st.session_state.phase_start
         remaining = quiz.choice_time - elapsed
