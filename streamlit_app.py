@@ -72,19 +72,6 @@ button:focus {
 """, unsafe_allow_html=True)
 
 # ---------------------------------------------------------
-# SAFE RERUN GUARD
-# ---------------------------------------------------------
-if "_rerunning" not in st.session_state:
-    st.session_state["_rerunning"] = False
-
-
-def safe_rerun():
-    if not st.session_state.get("_rerunning", False):
-        st.session_state["_rerunning"] = True
-        st.experimental_rerun()
-
-
-# ---------------------------------------------------------
 # VACR IMAGE SCALING
 # ---------------------------------------------------------
 def scale_vacr_pil(img, max_w, max_h):
@@ -226,8 +213,6 @@ class Quiz:
 # SCREEN 1 — MENU
 # ---------------------------------------------------------
 def screen_menu():
-    st.session_state["_rerunning"] = False
-
     st.title("Visual Aircraft Recognition (VACR) Quiz")
 
     hotlists = load_hotlist_folders()
@@ -268,14 +253,14 @@ def screen_menu():
         st.session_state.phase_start = None
         st.session_state.last_state = None
         st.session_state.selected_choice = None
-        safe_rerun()
+        st.rerun()
 
 
 # ---------------------------------------------------------
 # SCREEN 2 — QUIZ
 # ---------------------------------------------------------
 def screen_quiz():
-    st.session_state["_rerunning"] = False
+    st_autorefresh(interval=1000, key="quiz_tick")
 
     if "quiz" not in st.session_state or st.session_state.quiz is None:
         chosen, num_q, difficulty, num_choices, cat_states = st.session_state.quiz_settings
@@ -294,11 +279,8 @@ def screen_quiz():
         st.session_state.last_state = None
         st.session_state.selected_choice = None
 
-    quiz = st.session_state.quiz
 
-    # Autorefresh only during active quiz phases
-    if quiz.state in ["image", "choices"]:
-        st_autorefresh(interval=1000, key="quiz_tick")
+    quiz = st.session_state.quiz
 
     if quiz.state != st.session_state.get("last_state"):
         st.session_state.phase_start = None
@@ -328,7 +310,7 @@ def screen_quiz():
             quiz.state = "choices"
             st.session_state.phase_start = None
             st.session_state.selected_choice = None
-            safe_rerun()
+            st.rerun()
         return
 
     if quiz.state == "choices":
@@ -351,7 +333,7 @@ def screen_quiz():
                 )
                 if st.button(label, key=f"choice_{i}", use_container_width=True):
                     st.session_state.selected_choice = choice
-                    safe_rerun()
+                    st.rerun()
                 st.markdown("</div>", unsafe_allow_html=True)
 
         elapsed = time.time() - st.session_state.phase_start
@@ -366,21 +348,19 @@ def screen_quiz():
 
             if quiz.state == "finished":
                 st.session_state.screen = "results"
-                safe_rerun()
+                st.rerun()
             else:
-                safe_rerun()
+                st.rerun()
         return
 
     if quiz.state == "finished":
         st.session_state.screen = "results"
-        safe_rerun()
+        st.rerun()
 
 # ---------------------------------------------------------
 # SCREEN 3 — RESULTS
 # ---------------------------------------------------------
 def screen_results():
-    st.session_state["_rerunning"] = False
-
     quiz = st.session_state.quiz
 
     st.header("Results")
@@ -403,7 +383,7 @@ def screen_results():
         st.session_state.phase_start = None
         st.session_state.last_state = None
         st.session_state.selected_choice = None
-        safe_rerun()
+        st.rerun()
 
 # ---------------------------------------------------------
 # MAIN ROUTER
