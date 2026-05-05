@@ -131,7 +131,7 @@ class Quiz:
             self.questions += random.sample(models, min(len(models), num_q - len(self.questions)))
 
         self.index = 0
-               self.score = 0
+        self.score = 0
         self.wrong = []
         self.state = "image"
 
