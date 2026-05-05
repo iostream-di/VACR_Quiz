@@ -19,6 +19,26 @@ st.set_page_config(page_title="Marty's VACR QUIZ", layout="wide", page_icon="✈
 # ---------------------------------------------------------
 st.markdown("""
 <style>
+/* Center all main content */
+.block-container {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: flex-start !important; /* or center if you want vertical centering */
+    text-align: center !important;
+}
+
+/* Center subheaders and text */
+h1, h2, h3, p, div {
+    text-align: center !important;
+}
+
+/* Center the image container */
+.vacr-img {
+    margin-left: auto !important;
+    margin-right: auto !important;
+}
+
 /* Reduce default Streamlit padding to give images more vertical room */
 .block-container {
     padding-top: 0rem !important;
