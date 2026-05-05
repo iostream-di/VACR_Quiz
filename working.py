@@ -1,5 +1,5 @@
 # ======================================================================
-#  VACR QUIZ v7.6 — centered images + centered buttons + clean CSS
+#  VACR QUIZ v7.7 — centered containers + zero hangs + stable scaling
 # ======================================================================
 
 import streamlit as st
@@ -8,8 +8,6 @@ from pathlib import Path
 import random
 import time
 from PIL import Image
-from io import BytesIO
-import base64
 
 # ---------------------------------------------------------
 # PAGE CONFIG
@@ -17,7 +15,7 @@ import base64
 st.set_page_config(page_title="Marty's VACR QUIZ", layout="wide", page_icon="✈️")
 
 # ---------------------------------------------------------
-# GLOBAL CSS (padding + centered layout + image fit)
+# GLOBAL CSS (padding + image fit)
 # ---------------------------------------------------------
 st.markdown("""
 <style>
@@ -42,22 +40,15 @@ h1, h2, h3 {
     text-align: center !important;
 }
 
-/* Center the HTML-rendered VACR image */
-.vacr-img {
+/* Image still respects max-height */
+img {
     max-height: 80vh !important;
-    width: auto !important;
-    height: auto !important;
-    display: block !important;
-    margin-left: auto !important;
-    margin-right: auto !important;
     object-fit: contain !important;
 }
 
-/* Center buttons without collapsing sliders/selectboxes */
-div.stButton > button {
-    margin-left: auto !important;
-    margin-right: auto !important;
-    width: 100% !important;
+button:focus {
+    outline: none !important;
+    box-shadow: none !important;
 }
 
 </style>
@@ -70,19 +61,6 @@ def scale_vacr_pil(img, max_w=1600, max_h=900):
     w, h = img.size
     scale = min(max_w / w, max_h / h)
     return img.resize((int(w * scale), int(h * scale)), Image.LANCZOS)
-
-# ---------------------------------------------------------
-# HTML IMAGE RENDERER (centering fix)
-# ---------------------------------------------------------
-def render_vacr_image(path):
-    img = Image.open(path)
-    img = scale_vacr_pil(img)
-
-    buf = BytesIO()
-    img.save(buf, format="PNG")
-    b64 = base64.b64encode(buf.getvalue()).decode()
-
-    return f"<img class='vacr-img' src='data:image/png;base64,{b64}' />"
 
 # ---------------------------------------------------------
 # LOAD HOTLIST FOLDERS
@@ -153,7 +131,7 @@ class Quiz:
             self.questions += random.sample(models, min(len(models), num_q - len(self.questions)))
 
         self.index = 0
-        self.score = 0
+               self.score = 0
         self.wrong = []
         self.state = "image"
 
@@ -265,8 +243,14 @@ def screen_quiz():
         st.subheader(f"{quiz.index + 1}/{quiz.num_q}: Look closely…")
 
         if quiz.current_image:
-            html = render_vacr_image(quiz.current_image)
-            st.markdown(html, unsafe_allow_html=True)
+            img = Image.open(quiz.current_image)
+            img = scale_vacr_pil(img)
+
+            # Center the image by centering the container
+            with st.container():
+                st.markdown("<div style='text-align:center;'>", unsafe_allow_html=True)
+                st.image(img, use_column_width=False)
+                st.markdown("</div>", unsafe_allow_html=True)
         else:
             st.warning("No image found")
 
@@ -294,9 +278,12 @@ def screen_quiz():
             col = cols[i % 2]
             label = f"▶ {choice}" if choice == selected else choice
 
-            if col.button(label, key=f"choice_{i}", use_container_width=True):
-                st.session_state.selected_choice = choice
-                st.rerun()
+            with col:
+                st.markdown("<div style='text-align:center;'>", unsafe_allow_html=True)
+                if st.button(label, key=f"choice_{i}", use_container_width=True):
+                    st.session_state.selected_choice = choice
+                    st.rerun()
+                st.markdown("</div>", unsafe_allow_html=True)
 
         if time.time() - st.session_state.phase_start >= quiz.choice_time:
             quiz.process_answer(st.session_state.get("selected_choice"))
