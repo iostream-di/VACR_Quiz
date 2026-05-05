@@ -23,118 +23,87 @@ from pathlib import Path
 import random
 import time
 from PIL import Image
-import base64
 from io import BytesIO
+import base64
 
 # ---------------------------------------------------------
 # PAGE CONFIG
 # ---------------------------------------------------------
-st.set_page_config(page_title="Marty's VACR QUIZ", layout="wide", page_icon="✈️")
+st.set_page_config(page_title="VACR QUIZ", layout="wide", page_icon="✈️")
 
 # ---------------------------------------------------------
 # GLOBAL CSS
 # ---------------------------------------------------------
 st.markdown("""
 <style>
-.block-container {
-    padding-top: 0rem !important;
-    padding-bottom: 0rem !important;
-    padding-left: 1rem !important;
-    padding-right: 1rem !important;
-}
-
-header, .stApp {
-    padding-top: 0 !important;
-    margin-top: 0 !important;
-}
-
-h1, h2, h3 {
-    padding-top: 2.0rem !important;
-}
-
-html, body, .stApp {
-    height: 100%;
-    overflow: hidden;
-}
-
-.vacr-img {
-    max-height: 80vh !important;
-    width: auto !important;
-    height: auto !important;
-    object-fit: contain !important;
-    display: block !important;
-    margin-left: auto !important;
-    margin-right: auto !important;
-}
-
-/* Top-right timer */
-.timer-container {
+.timer-box {
     position: absolute;
     top: 10px;
     right: 20px;
-    width: 80px;
+    font-size: 32px;
+    font-weight: 600;
+}
+.vacr-img {
+    max-height: 80vh;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
 }
 </style>
 """, unsafe_allow_html=True)
 
 # ---------------------------------------------------------
-# CACHED IMAGE RENDERER
+# TICK ENGINE (E1)
+# ---------------------------------------------------------
+if "tick" not in st.session_state:
+    st.session_state.tick = 0
+
+# This widget forces rerun because its value changes every run
+st.session_state.tick += 1
+st.number_input(" ", value=st.session_state.tick, key="tickbox")
+
+# ---------------------------------------------------------
+# IMAGE CACHE
 # ---------------------------------------------------------
 @st.cache_resource
-def get_cached_image_html(path_str, max_w=1600, max_h=900):
+def get_cached_image_html(path_str):
     img = Image.open(path_str)
-
     w, h = img.size
-    scale = min(max_w / w, max_h / h)
+    scale = min(1600 / w, 900 / h)
     img = img.resize((int(w * scale), int(h * scale)), Image.LANCZOS)
 
     buf = BytesIO()
     img.save(buf, format="PNG")
     b64 = base64.b64encode(buf.getvalue()).decode()
 
-    return f"""
-    <div style="text-align:center;">
-        <img class="vacr-img"
-             src="data:image/png;base64,{b64}" />
-    </div>
-    """
+    return f"<img class='vacr-img' src='data:image/png;base64,{b64}' />"
 
 # ---------------------------------------------------------
-# LOAD HOTLIST FOLDERS
+# LOAD HOTLISTS
 # ---------------------------------------------------------
 def load_hotlist_folders():
     base = Path("hotlists")
     base.mkdir(exist_ok=True)
-    files = [f.stem for f in base.glob("*.txt")]
-    files.sort()
-    return files
+    return sorted([f.stem for f in base.glob("*.txt")])
 
-# ---------------------------------------------------------
-# LOAD HOTLIST DATA
-# ---------------------------------------------------------
 def load_hotlist(name):
-    hotlist_path = Path("hotlists") / f"{name}.txt"
-    img_dir = Path("imgs")
-
     categories = {}
-    with open(hotlist_path, "r", encoding="utf-8") as f:
+    with open(Path("hotlists") / f"{name}.txt", "r", encoding="utf-8") as f:
         for line in f:
-            if "|" not in line:
-                continue
-            name, cat = line.strip().split("|", 1)
-            categories[name.strip()] = cat.strip().capitalize()
+            if "|" in line:
+                model, cat = line.strip().split("|", 1)
+                categories[model] = cat.capitalize()
+    return categories, Path("imgs")
 
-    return categories, img_dir
-
-# ---------------------------------------------------------
-# LOAD IMAGES
-# ---------------------------------------------------------
 def load_images(img_dir, models):
     images = {}
-    for model in models:
-        safe = model.replace(" ", "_").replace("/", "_").lower()
+    for m in models:
+        safe = m.replace(" ", "_").replace("/", "_").lower()
         folder = img_dir / safe
-        images[model] = sorted(folder.glob("*.*")) if folder.exists() else []
+        images[m] = sorted(folder.glob("*.*")) if folder.exists() else []
     return images
 
 # ---------------------------------------------------------
@@ -173,7 +142,6 @@ class Quiz:
         self.current_model = None
         self.current_image = None
         self.choices = []
-
         self.phase_start = time.time()
 
         self.next_question()
@@ -184,8 +152,8 @@ class Quiz:
             return
 
         self.current_model = self.questions[self.index]
-        img_list = self.images.get(self.current_model, [])
-        self.current_image = random.choice(img_list) if img_list else None
+        imgs = self.images.get(self.current_model, [])
+        self.current_image = random.choice(imgs) if imgs else None
 
         cat = self.categories[self.current_model]
         others = [m for m in self.models if m != self.current_model]
@@ -193,14 +161,13 @@ class Quiz:
 
         wrong = []
         need = self.num_choices - 1
-
         take_same = min(len(same_cat), need)
         wrong.extend(random.sample(same_cat, take_same))
 
         remaining = need - take_same
         if remaining > 0:
             pool = [m for m in others if m not in wrong]
-            wrong.extend(random.sample(pool, min(len(pool), remaining)))
+            wrong.extend(random.sample(pool, remaining))
 
         self.choices = wrong + [self.current_model]
         random.shuffle(self.choices)
@@ -213,15 +180,14 @@ class Quiz:
             self.score += 1
         else:
             self.wrong.append((self.current_model, answer))
-
         self.index += 1
         self.next_question()
 
 # ---------------------------------------------------------
-# SCREEN 1 — MENU
+# MENU
 # ---------------------------------------------------------
 def screen_menu():
-    st.title("Marty's VACR Quiz")
+    st.title("VACR QUIZ")
 
     hotlists = load_hotlist_folders()
     chosen = st.selectbox("Hotlist", hotlists)
@@ -230,20 +196,14 @@ def screen_menu():
     unique_cats = sorted(set(categories.values()))
 
     st.subheader("Select Categories")
-    cat_states = {}
-    cols = st.columns(3)
-    for i, cat in enumerate(unique_cats):
-        with cols[i % 3]:
-            cat_states[cat] = st.toggle(cat, value=True)
+    cat_states = {c: st.toggle(c, value=True) for c in unique_cats}
 
-    filtered_models = [m for m, c in categories.items() if cat_states.get(c, False)]
-    max_aircraft = len(filtered_models)
-
-    if max_aircraft == 0:
-        st.error("No aircraft available with the selected categories.")
+    models = [m for m, c in categories.items() if cat_states[c]]
+    if not models:
+        st.error("No aircraft available.")
         return
 
-    num_q = st.slider("Number of aircraft", 1, max_aircraft, min(20, max_aircraft))
+    num_q = st.slider("Number of aircraft", 1, len(models), min(20, len(models)))
     difficulty = st.selectbox("Difficulty", ["Easy", "Standard", "Warfighter", "AI"], index=1)
     num_choices = st.slider("Choices per question", 4, 6, 4)
 
@@ -255,16 +215,14 @@ def screen_menu():
         st.rerun()
 
 # ---------------------------------------------------------
-# SCREEN 2 — QUIZ (widget-driven rerun)
+# QUIZ
 # ---------------------------------------------------------
 def screen_quiz():
     if "quiz" not in st.session_state or st.session_state.quiz is None:
         chosen, num_q, difficulty, num_choices, cat_states = st.session_state.quiz_settings
         categories, img_dir = load_hotlist(chosen)
-
-        models = [m for m, c in categories.items() if cat_states.get(c, False)]
+        models = [m for m, c in categories.items() if cat_states[c]]
         images = load_images(img_dir, models)
-
         st.session_state.quiz = Quiz(models, categories, images, num_q, difficulty, num_choices)
         st.session_state.selected_choice = None
 
@@ -278,16 +236,11 @@ def screen_quiz():
         if remaining < 0:
             remaining = 0
 
-        with st.container():
-            st.markdown("<div class='timer-container'>", unsafe_allow_html=True)
-            st.metric(" ", f"{remaining}s")
-            st.markdown("</div>", unsafe_allow_html=True)
-
+        st.markdown(f"<div class='timer-box'>{remaining}s</div>", unsafe_allow_html=True)
         st.subheader(f"{quiz.index + 1}/{quiz.num_q}: Look closely…")
 
         if quiz.current_image:
-            html = get_cached_image_html(str(quiz.current_image))
-            st.markdown(html, unsafe_allow_html=True)
+            st.markdown(get_cached_image_html(str(quiz.current_image)), unsafe_allow_html=True)
         else:
             st.warning("No image found")
 
@@ -299,17 +252,13 @@ def screen_quiz():
 
         return
 
-    # CHOICES PHASE
+    # CHOICE PHASE
     if quiz.state == "choices":
         remaining = quiz.choice_time - int(elapsed)
         if remaining < 0:
             remaining = 0
 
-        with st.container():
-            st.markdown("<div class='timer-container'>", unsafe_allow_html=True)
-            st.metric(" ", f"{remaining}s")
-            st.markdown("</div>", unsafe_allow_html=True)
-
+        st.markdown(f"<div class='timer-box'>{remaining}s</div>", unsafe_allow_html=True)
         st.subheader(f"{quiz.index + 1}/{quiz.num_q}: Which one was it?")
 
         selected = st.session_state.get("selected_choice")
@@ -323,8 +272,7 @@ def screen_quiz():
                 st.rerun()
 
         if remaining <= 0:
-            final_answer = st.session_state.get("selected_choice")
-            quiz.process_answer(final_answer)
+            quiz.process_answer(st.session_state.get("selected_choice"))
             st.session_state.selected_choice = None
 
             if quiz.state == "finished":
@@ -334,26 +282,21 @@ def screen_quiz():
 
         return
 
-    if quiz.state == "finished":
-        st.session_state.screen = "results"
-        st.rerun()
-        return
-
 # ---------------------------------------------------------
-# SCREEN 3 — RESULTS
+# RESULTS
 # ---------------------------------------------------------
 def screen_results():
     quiz = st.session_state.quiz
-
     st.header("Results")
-    percent = (quiz.score / quiz.num_q) * 100
-    st.subheader(f"Score: {quiz.score}/{quiz.num_q} ({percent:.1f}%)")
+
+    pct = (quiz.score / quiz.num_q) * 100
+    st.subheader(f"Score: {quiz.score}/{quiz.num_q} ({pct:.1f}%)")
 
     if quiz.wrong:
         st.subheader("Incorrect Answers")
         for correct, chosen in quiz.wrong:
-            shown = chosen if chosen is not None else "No answer"
-            st.markdown(f"❌ **{shown} → {correct}**")
+            chosen = chosen if chosen else "No answer"
+            st.write(f"❌ {chosen} → {correct}")
     else:
         st.success("Perfect score!")
 
@@ -364,7 +307,7 @@ def screen_results():
         st.rerun()
 
 # ---------------------------------------------------------
-# MAIN ROUTER
+# ROUTER
 # ---------------------------------------------------------
 if "screen" not in st.session_state:
     st.session_state.screen = "menu"
