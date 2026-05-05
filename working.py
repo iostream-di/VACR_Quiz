@@ -19,10 +19,8 @@
 # ======================================================================
 
 import streamlit as st
-from streamlit_autorefresh import st_autorefresh
 from pathlib import Path
 import random
-import time
 from PIL import Image
 import base64
 from io import BytesIO
@@ -141,6 +139,7 @@ class Quiz:
         self.num_q = num_q
         self.num_choices = num_choices
 
+        # Keep difficulty fields for future use (timed logic if re-enabled)
         if difficulty == "Easy":
             self.image_time = 10
             self.choice_time = 15
@@ -241,17 +240,13 @@ def screen_menu():
         st.session_state.screen = "quiz"
         st.session_state.quiz_settings = (chosen, num_q, difficulty, num_choices, cat_states)
         st.session_state.quiz = None
-        st.session_state.phase_start = None
-        st.session_state.last_state = None
         st.session_state.selected_choice = None
         st.rerun()
 
 # ---------------------------------------------------------
-# SCREEN 2 — QUIZ
+# SCREEN 2 — QUIZ (no autorefresh, no ticking UI)
 # ---------------------------------------------------------
 def screen_quiz():
-    st_autorefresh(interval=1000, key="quiz_tick")
-
     if "quiz" not in st.session_state or st.session_state.quiz is None:
         chosen, num_q, difficulty, num_choices, cat_states = st.session_state.quiz_settings
         categories, img_dir = load_hotlist(chosen)
@@ -260,15 +255,9 @@ def screen_quiz():
         images = load_images(img_dir, models)
 
         st.session_state.quiz = Quiz(models, categories, images, num_q, difficulty, num_choices)
-        st.session_state.phase_start = None
-        st.session_state.last_state = None
         st.session_state.selected_choice = None
 
     quiz = st.session_state.quiz
-
-    if quiz.state != st.session_state.get("last_state"):
-        st.session_state.phase_start = None
-        st.session_state.last_state = quiz.state
 
     # IMAGE PHASE
     if quiz.state == "image":
@@ -280,24 +269,17 @@ def screen_quiz():
         else:
             st.warning("No image found")
 
-        if st.session_state.phase_start is None:
-            st.session_state.phase_start = time.time()
-
-        elapsed = time.time() - st.session_state.phase_start
-        remaining = quiz.image_time - elapsed
-
-        if remaining <= 0:
+        # Silent timer: no ticking UI, no autorefresh.
+        # User advances when ready.
+        if st.button("Show choices"):
             quiz.state = "choices"
-            st.session_state.phase_start = None
             st.session_state.selected_choice = None
+            st.rerun()
         return
 
     # CHOICES PHASE
     if quiz.state == "choices":
         st.subheader(f"{quiz.index + 1}/{quiz.num_q}: Which one was it?")
-
-        if st.session_state.phase_start is None:
-            st.session_state.phase_start = time.time()
 
         selected = st.session_state.get("selected_choice")
 
@@ -309,21 +291,19 @@ def screen_quiz():
                 st.session_state.selected_choice = choice
                 st.rerun()
 
-        elapsed = time.time() - st.session_state.phase_start
-        remaining = quiz.choice_time - elapsed
-
-        if remaining <= 0:
+        if st.button("Lock answer / Next"):
             final_answer = st.session_state.get("selected_choice")
             quiz.process_answer(final_answer)
             st.session_state.selected_choice = None
-            st.session_state.phase_start = None
 
             if quiz.state == "finished":
                 st.session_state.screen = "results"
+            st.rerun()
         return
 
     if quiz.state == "finished":
         st.session_state.screen = "results"
+        st.rerun()
         return
 
 # ---------------------------------------------------------
@@ -347,8 +327,6 @@ def screen_results():
     if st.button("Return to Menu"):
         st.session_state.screen = "menu"
         st.session_state.quiz = None
-        st.session_state.phase_start = None
-        st.session_state.last_state = None
         st.session_state.selected_choice = None
         st.rerun()
 
