@@ -33,7 +33,7 @@ from io import BytesIO
 st.set_page_config(page_title="Marty's VACR QUIZ", layout="wide", page_icon="✈️")
 
 # ---------------------------------------------------------
-# GLOBAL CSS — layout fixes + title padding + no scroll
+# GLOBAL CSS
 # ---------------------------------------------------------
 st.markdown("""
 <style>
@@ -67,11 +67,18 @@ html, body, .stApp {
     margin-left: auto !important;
     margin-right: auto !important;
 }
+
+/* Hide the invisible text input */
+#hidden_input {
+    opacity: 0 !important;
+    height: 0px !important;
+    pointer-events: none !important;
+}
 </style>
 """, unsafe_allow_html=True)
 
 # ---------------------------------------------------------
-# FULLY CACHED HTML IMAGE RENDERER
+# CACHED IMAGE RENDERER
 # ---------------------------------------------------------
 @st.cache_resource
 def get_cached_image_html(path_str, max_w=1600, max_h=900):
@@ -267,6 +274,9 @@ def screen_quiz():
     if quiz.state == "image":
         st.subheader(f"{quiz.index + 1}/{quiz.num_q}: Look closely…")
 
+        # Hidden widget to force autorefresh to fire
+        st.text_input(" ", key="hidden_input")
+
         if quiz.current_image:
             html = get_cached_image_html(str(quiz.current_image))
             st.markdown(html, unsafe_allow_html=True)
@@ -279,6 +289,14 @@ def screen_quiz():
             limit=1,
             key=f"img_{quiz.index}"
         )
+
+        # If autorefresh fired, switch phase
+        elapsed = time.time() - quiz.phase_start
+        if elapsed >= quiz.image_time:
+            quiz.state = "choices"
+            quiz.phase_start = time.time()
+            st.session_state.selected_choice = None
+            st.rerun()
 
         return
 
