@@ -46,23 +46,10 @@ img.vacr-img {
     margin-right: auto !important;
 }
 
-/* Center ALL Streamlit widget containers */
-div[class^="st-emotion-cache"] {
-    display: flex !important;
-    flex-direction: column !important;
-    align-items: center !important;
-    justify-content: center !important;
-}
 
 /* Center images explicitly */
 img {
     display: block !important;
-    margin-left: auto !important;
-    margin-right: auto !important;
-}
-
-/* Center buttons explicitly */
-button {
     margin-left: auto !important;
     margin-right: auto !important;
 }
