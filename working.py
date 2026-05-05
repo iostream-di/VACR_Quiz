@@ -20,6 +20,19 @@ st.set_page_config(page_title="Marty's VACR QUIZ", layout="wide", page_icon="✈
 st.markdown("""
 <style>
 /* Center all main content */
+div[data-testid="column"] {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+/* Center buttons inside columns */
+div[data-testid="column"] button {
+    margin-left: auto !important;
+    margin-right: auto !important;
+}
+
 .block-container {
     display: flex !important;
     flex-direction: column !important;
@@ -231,7 +244,7 @@ def screen_menu():
         return
 
     num_q = st.slider("Number of aircraft", 1, len(models), min(20, len(models)))
-    difficulty = st.selectbox("Difficulty", ["Easy", "Standard", "Warfighter", "AI"])
+    difficulty = st.selectbox("Difficulty", ["Easy", "Standard", "Warfighter", "AI"], index=1)
     num_choices = st.slider("Choices per question", 4, 6, 4)
 
     if st.button("Start Quiz"):
