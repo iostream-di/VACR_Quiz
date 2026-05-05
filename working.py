@@ -36,6 +36,10 @@ button:focus {
     outline: none !important;
     box-shadow: none !important;
 }
+    h1, h2, h3 {
+    padding-top: 2.0rem !important;
+    text-align: center !important;
+}
 </style>
 """, unsafe_allow_html=True)
 
