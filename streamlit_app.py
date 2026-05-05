@@ -29,16 +29,46 @@ from PIL import Image
 # ---------------------------------------------------------
 # PAGE CONFIG
 # ---------------------------------------------------------
-st.set_page_config(page_title="Marty's VACR QUIZ", layout="wide", page_icon="✈️")
+st.set_page_config(page_title="VACR QUIZ", layout="wide", page_icon="✈️")
 
-# Remove mobile browser auto-focus highlight
+# ---------------------------------------------------------
+# GLOBAL CSS (padding + image fit)
+# ---------------------------------------------------------
 st.markdown("""
-    <style>
-    button:focus {
-        outline: none !important;
-        box-shadow: none !important;
-    }
-    </style>
+<style>
+
+.block-container {
+    padding-top: 0rem !important;
+    padding-bottom: 0rem !important;
+    padding-left: 1rem !important;
+    padding-right: 1rem !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+}
+
+html, body, .stApp {
+    height: 100%;
+    overflow: hidden;
+}
+
+h1, h2, h3 {
+    padding-top: 2.0rem !important;
+    text-align: center !important;
+}
+
+/* Image still respects max-height */
+img {
+    max-height: 80vh !important;
+    object-fit: contain !important;
+}
+
+button:focus {
+    outline: none !important;
+    box-shadow: none !important;
+}
+
+</style>
 """, unsafe_allow_html=True)
 
 # ---------------------------------------------------------
@@ -183,7 +213,7 @@ class Quiz:
 # SCREEN 1 — MENU
 # ---------------------------------------------------------
 def screen_menu():
-    st.title("Marty's VACR Quiz")
+    st.title("Visual Aircraft Recognition (VACR) Quiz")
 
     hotlists = load_hotlist_folders()
     chosen = st.selectbox("Hotlist", hotlists)
@@ -213,7 +243,7 @@ def screen_menu():
         return
 
     num_q = st.slider("Number of aircraft", 1, max_aircraft, min(20, max_aircraft))
-    difficulty = st.selectbox("Difficulty", ["Easy", "Standard", "Warfighter", "AI"])
+    difficulty = st.selectbox("Difficulty", ["Easy", "Standard", "Warfighter", "AI"], index=1)
     num_choices = st.slider("Choices per question", 4, 6, 4)
 
     if st.button("Start Quiz"):
