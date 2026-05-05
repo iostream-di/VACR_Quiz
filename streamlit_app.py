@@ -223,7 +223,7 @@ def screen_menu():
     # Extract unique categories
     unique_cats = sorted(set(categories.values()))
 
-    st.subheader("Select Categories")
+    st.markdown("Select Categories")
     cat_states = {}
     cols = st.columns(3)
     for i, cat in enumerate(unique_cats):
