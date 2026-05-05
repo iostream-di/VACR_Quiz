@@ -1,5 +1,5 @@
 # ======================================================================
-#  VACR QUIZ v7.7 — centered containers + zero hangs + stable scaling
+#  VACR QUIZ v7.8 — centered containers + zero hangs + stable scaling
 # ======================================================================
 
 import streamlit as st
@@ -246,11 +246,14 @@ def screen_quiz():
             img = Image.open(quiz.current_image)
             img = scale_vacr_pil(img)
 
-            # Center the image by centering the container
-            with st.container():
-                st.markdown("<div style='text-align:center;'>", unsafe_allow_html=True)
-                st.image(img, use_column_width=False)
-                st.markdown("</div>", unsafe_allow_html=True)
+            # FINAL CENTERING FIX — center the container, not the widget
+            st.markdown(
+                "<div style='display:flex; justify-content:center; width:100%;'>",
+                unsafe_allow_html=True
+            )
+            st.image(img, use_column_width=False)
+            st.markdown("</div>", unsafe_allow_html=True)
+
         else:
             st.warning("No image found")
 
@@ -279,7 +282,10 @@ def screen_quiz():
             label = f"▶ {choice}" if choice == selected else choice
 
             with col:
-                st.markdown("<div style='text-align:center;'>", unsafe_allow_html=True)
+                st.markdown(
+                    "<div style='display:flex; justify-content:center; width:100%;'>",
+                    unsafe_allow_html=True
+                )
                 if st.button(label, key=f"choice_{i}", use_container_width=True):
                     st.session_state.selected_choice = choice
                     st.rerun()
