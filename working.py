@@ -1,9 +1,10 @@
 # ======================================================================
-#  VACR QUIZ v7.3 — original image loader + TM1 + autorefresh + no timer UI
+#  VACR QUIZ v7.4 — dynamic scaling (JS) + original image loader + TM1
 # ======================================================================
 
 import streamlit as st
 from streamlit_autorefresh import st_autorefresh
+from streamlit_javascript import st_javascript
 from pathlib import Path
 import random
 import time
@@ -34,11 +35,26 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ---------------------------------------------------------
-# IMAGE SCALING (original working logic)
+# DYNAMIC SCREEN SIZE (JS)
 # ---------------------------------------------------------
-def scale_vacr_pil(img, max_w, max_h):
+w = st_javascript("window.innerWidth")
+h = st_javascript("window.innerHeight")
+
+if w:
+    st.session_state.screen_w = w
+if h:
+    st.session_state.screen_h = h
+
+# Defaults if JS hasn't returned yet
+screen_w = int(st.session_state.get("screen_w", 1600))
+screen_h = int(st.session_state.get("screen_h", 900))
+
+# ---------------------------------------------------------
+# IMAGE SCALING (dynamic)
+# ---------------------------------------------------------
+def scale_vacr_pil(img):
     w, h = img.size
-    scale = min(max_w / w, max_h / h)
+    scale = min(screen_w / w, screen_h / h)
     return img.resize((int(w * scale), int(h * scale)), Image.LANCZOS)
 
 # ---------------------------------------------------------
@@ -225,7 +241,7 @@ def screen_quiz():
 
         if quiz.current_image:
             img = Image.open(quiz.current_image)
-            img = scale_vacr_pil(img, 1600, 900)
+            img = scale_vacr_pil(img)
             st.image(img)
         else:
             st.warning("No image found")
