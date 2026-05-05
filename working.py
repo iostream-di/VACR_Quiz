@@ -56,11 +56,6 @@ h1, h2, h3 {
     padding-top: 2.0rem !important;
 }
 
-/* Remove extra space below progress bar */
-.css-1kyxreq {
-    margin-bottom: 0 !important;
-}
-
 /* Force the entire app to use full viewport height */
 html, body, .stApp {
     height: 100%;
@@ -79,6 +74,31 @@ html, body, .stApp {
 }
 </style>
 """, unsafe_allow_html=True)
+
+# ---------------------------------------------------------
+# HTML TIMER BAR (replaces st.progress)
+# ---------------------------------------------------------
+def render_timer_bar(remaining, total):
+    pct = max(0, min(1, remaining / total))
+    width = int(pct * 100)
+    bar = f"""
+    <div style="
+        width: 100%;
+        height: 18px;
+        background-color: #333;
+        border-radius: 4px;
+        overflow: hidden;
+        margin-top: 0.5rem;
+        margin-bottom: 0.5rem;">
+        <div style="
+            width: {width}%;
+            height: 100%;
+            background-color: #4CAF50;
+            transition: width 0.3s linear;">
+        </div>
+    </div>
+    """
+    st.markdown(bar, unsafe_allow_html=True)
 
 # ---------------------------------------------------------
 # FULLY CACHED HTML IMAGE RENDERER
@@ -299,7 +319,7 @@ def screen_quiz():
 
         elapsed = time.time() - st.session_state.phase_start
         remaining = quiz.image_time - elapsed
-        st.progress(max(0.0, remaining) / quiz.image_time)
+        render_timer_bar(remaining, quiz.image_time)
 
         if remaining <= 0:
             quiz.state = "choices"
@@ -326,7 +346,7 @@ def screen_quiz():
 
         elapsed = time.time() - st.session_state.phase_start
         remaining = quiz.choice_time - elapsed
-        st.progress(max(0.0, remaining) / quiz.choice_time)
+        render_timer_bar(remaining, quiz.choice_time)
 
         if remaining <= 0:
             final_answer = st.session_state.get("selected_choice")
