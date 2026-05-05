@@ -15,16 +15,7 @@
 #     • Slow bandwidth users might observe the timer elapsing before the image fully loads.
 #
 #  Version: 2.3 (cached images + safe reruns + desktop fit)
-#  Last Updated: April 2026
-# ======================================================================
-
-# ======================================================================
-#  VACR (Visual Aircraft Recognition QUIZ) app
-#  Author: David "Marty" Martinez (dmartinez61789@gmail.com / david.a.martinez291.mil@army.mil)
-#  Purpose: Streamlit-based quiz app for students seeking to improve their VACR techniques.
-#
-#  Version: 2.5 (HTML renderer + cached images + safe reruns + perfect scaling)
-#  Last Updated: April 2026
+#  Last Updated: may 2026
 # ======================================================================
 
 import streamlit as st
@@ -41,7 +32,9 @@ from io import BytesIO
 # ---------------------------------------------------------
 st.set_page_config(page_title="Marty's VACR QUIZ", layout="wide", page_icon="✈️")
 
-# Remove mobile browser auto-focus highlight
+# ---------------------------------------------------------
+# GLOBAL CSS — layout fixes + title padding + no scroll
+# ---------------------------------------------------------
 st.markdown("""
 <style>
 /* Remove ALL default Streamlit padding */
@@ -73,39 +66,45 @@ html, body, .stApp {
     height: 100%;
     overflow: hidden;
 }
+
+/* Image scaling class */
+.vacr-img {
+    max-height: 80vh !important;
+    width: auto !important;
+    height: auto !important;
+    object-fit: contain !important;
+    display: block !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+}
 </style>
 """, unsafe_allow_html=True)
 
+# ---------------------------------------------------------
+# FULLY CACHED HTML IMAGE RENDERER
+# ---------------------------------------------------------
+@st.cache_resource
+def get_cached_image_html(path_str, max_w=1600, max_h=900):
+    """Load, scale, encode, and HTML-wrap the image ONCE."""
+    img = Image.open(path_str)
 
-# ---------------------------------------------------------
-# HTML IMAGE RENDERER (NO STREAMLIT IMAGE COMPONENT)
-# ---------------------------------------------------------
-def render_image_html(pil_img):
-    """Render image using raw HTML so Streamlit cannot override scaling."""
+    # Scale
+    w, h = img.size
+    scale = min(max_w / w, max_h / h)
+    img = img.resize((int(w * scale), int(h * scale)), Image.LANCZOS)
+
+    # Encode
     buf = BytesIO()
-    pil_img.save(buf, format="PNG")
+    img.save(buf, format="PNG")
     b64 = base64.b64encode(buf.getvalue()).decode()
 
-    html = f"""
+    # Final HTML (cached)
+    return f"""
     <div style="text-align:center;">
         <img class="vacr-img"
              src="data:image/png;base64,{b64}" />
     </div>
     """
-    st.markdown(html, unsafe_allow_html=True)
-
-# ---------------------------------------------------------
-# IMAGE SCALING + CACHED LOADER
-# ---------------------------------------------------------
-def scale_vacr_pil(img, max_w, max_h):
-    w, h = img.size
-    scale = min(max_w / w, max_h / h)
-    return img.resize((int(w * scale), int(h * scale)), Image.LANCZOS)
-
-@st.cache_resource
-def load_and_scale_image(path_str, max_w=1600, max_h=900):
-    img = Image.open(path_str)
-    return scale_vacr_pil(img, max_w, max_h)
 
 # ---------------------------------------------------------
 # LOAD HOTLIST FOLDERS
@@ -249,7 +248,7 @@ def screen_menu():
         return
 
     num_q = st.slider("Number of aircraft", 1, max_aircraft, min(20, max_aircraft))
-    difficulty = st.selectbox("Difficulty", ["Easy", "Standard", "Warfighter", "AI"],index=1)
+    difficulty = st.selectbox("Difficulty", ["Easy", "Standard", "Warfighter", "AI"], index=1)
     num_choices = st.slider("Choices per question", 4, 6, 4)
 
     if st.button("Start Quiz"):
@@ -290,8 +289,8 @@ def screen_quiz():
         st.subheader(f"{quiz.index + 1}/{quiz.num_q}: Look closely…")
 
         if quiz.current_image:
-            img = load_and_scale_image(str(quiz.current_image), max_w=1600, max_h=900)
-            render_image_html(img)
+            html = get_cached_image_html(str(quiz.current_image))
+            st.markdown(html, unsafe_allow_html=True)
         else:
             st.warning("No image found")
 
@@ -323,7 +322,7 @@ def screen_quiz():
             label = f"▶ {choice}" if choice == selected else choice
             if col.button(label, key=f"choice_{i}"):
                 st.session_state.selected_choice = choice
-                st.rerun()  # immediate visual update
+                st.rerun()
 
         elapsed = time.time() - st.session_state.phase_start
         remaining = quiz.choice_time - elapsed
