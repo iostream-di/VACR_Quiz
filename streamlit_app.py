@@ -295,7 +295,7 @@ def screen_quiz():
             # 3-column centering trick (the only stable method)
             left, center, right = st.columns([1, 2, 1])
             with center:
-                st.image(img, use_column_width=False)
+                st.image(img, output_format="auto", use_container_width=True)
         else:
             st.warning("No image found")
 
