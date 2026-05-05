@@ -21,6 +21,7 @@
 import streamlit as st
 from pathlib import Path
 import random
+import time
 from PIL import Image
 import base64
 from io import BytesIO
@@ -65,8 +66,31 @@ html, body, .stApp {
     margin-left: auto !important;
     margin-right: auto !important;
 }
+
+/* Invisible auto-rerun trigger */
+#invisirun {
+    height: 0px !important;
+    width: 0px !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+}
 </style>
 """, unsafe_allow_html=True)
+
+# ---------------------------------------------------------
+# INVISIBLE AUTO-RERUN ENGINE (0.5s)
+# ---------------------------------------------------------
+st.markdown("""
+<script>
+setTimeout(function() {
+    const btn = document.getElementById("invisirun");
+    if (btn) { btn.click(); }
+}, 500);
+</script>
+""", unsafe_allow_html=True)
+
+# Hidden button that triggers rerun
+st.button(" ", key="invisirun", help="", type="secondary")
 
 # ---------------------------------------------------------
 # FULLY CACHED HTML IMAGE RENDERER
@@ -139,7 +163,6 @@ class Quiz:
         self.num_q = num_q
         self.num_choices = num_choices
 
-        # Keep difficulty fields for future use (timed logic if re-enabled)
         if difficulty == "Easy":
             self.image_time = 10
             self.choice_time = 15
@@ -165,6 +188,8 @@ class Quiz:
         self.current_model = None
         self.current_image = None
         self.choices = []
+
+        self.phase_start = time.time()
 
         self.next_question()
 
@@ -196,6 +221,7 @@ class Quiz:
         random.shuffle(self.choices)
 
         self.state = "image"
+        self.phase_start = time.time()
 
     def process_answer(self, answer):
         if answer == self.current_model:
@@ -244,7 +270,7 @@ def screen_menu():
         st.rerun()
 
 # ---------------------------------------------------------
-# SCREEN 2 — QUIZ (no autorefresh, no ticking UI)
+# SCREEN 2 — QUIZ (auto-advancing silent timer)
 # ---------------------------------------------------------
 def screen_quiz():
     if "quiz" not in st.session_state or st.session_state.quiz is None:
@@ -259,6 +285,9 @@ def screen_quiz():
 
     quiz = st.session_state.quiz
 
+    now = time.time()
+    elapsed = now - quiz.phase_start
+
     # IMAGE PHASE
     if quiz.state == "image":
         st.subheader(f"{quiz.index + 1}/{quiz.num_q}: Look closely…")
@@ -269,10 +298,10 @@ def screen_quiz():
         else:
             st.warning("No image found")
 
-        # Silent timer: no ticking UI, no autorefresh.
-        # User advances when ready.
-        if st.button("Show choices"):
+        # Auto-advance silently
+        if elapsed >= quiz.image_time:
             quiz.state = "choices"
+            quiz.phase_start = time.time()
             st.session_state.selected_choice = None
             st.rerun()
         return
@@ -291,13 +320,15 @@ def screen_quiz():
                 st.session_state.selected_choice = choice
                 st.rerun()
 
-        if st.button("Lock answer / Next"):
+        # Auto-submit silently
+        if elapsed >= quiz.choice_time:
             final_answer = st.session_state.get("selected_choice")
             quiz.process_answer(final_answer)
             st.session_state.selected_choice = None
 
             if quiz.state == "finished":
                 st.session_state.screen = "results"
+
             st.rerun()
         return
 
