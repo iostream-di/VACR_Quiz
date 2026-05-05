@@ -1,112 +1,91 @@
+# ======================================================================
+#  VACR QUIZ v7.2 — st_autorefresh + TM1 + original image loader
+# ======================================================================
+
 import streamlit as st
 from streamlit_autorefresh import st_autorefresh
 from pathlib import Path
 import random
 import time
 from PIL import Image
-from io import BytesIO
-import base64
 
 # ---------------------------------------------------------
 # PAGE CONFIG
 # ---------------------------------------------------------
-st.set_page_config(page_title="VACR QUIZ", layout="wide", page_icon="✈️")
+st.set_page_config(page_title="Marty's VACR QUIZ", layout="wide", page_icon="✈️")
 
-# ---------------------------------------------------------
-# GLOBAL 1s AUTOREFRESH (LIGHTWEIGHT)
-# ---------------------------------------------------------
-st_autorefresh(interval=1000, key="global_refresh")
-
-# ---------------------------------------------------------
-# GLOBAL CSS
-# ---------------------------------------------------------
+# Remove mobile browser auto-focus highlight
 st.markdown("""
-<style>
-.block-container {
-    padding-top: 0rem !important;
-    padding-bottom: 0rem !important;
-    padding-left: 1rem !important;
-    padding-right: 1rem !important;
-}
-html, body, .stApp {
-    height: 100%;
-    overflow: hidden;
-}
-.vacr-img {
-    max-height: 80vh;
-    width: auto;
-    height: auto;
-    object-fit: contain;
-    display: block;
-    margin-left: auto;
-    margin-right: auto;
-}
-.timer-box {
-    position: absolute;
-    top: 10px;
-    right: 20px;
-    font-size: 32px;
-    font-weight: 600;
-}
-</style>
+    <style>
+    button:focus {
+        outline: none !important;
+        box-shadow: none !important;
+    }
+    .timer-box {
+        position: absolute;
+        top: 10px;
+        right: 20px;
+        font-size: 32px;
+        font-weight: 600;
+    }
+    .vacr-img {
+        max-height: 80vh;
+        width: auto;
+        height: auto;
+        object-fit: contain;
+        display: block;
+        margin-left: auto;
+        margin-right: auto;
+    }
+    </style>
 """, unsafe_allow_html=True)
 
 # ---------------------------------------------------------
-# IMAGE RENDERER (NO CACHING)
+# IMAGE SCALING (original working logic)
 # ---------------------------------------------------------
-def render_image(path_str):
-    img = Image.open(path_str)
+def scale_vacr_pil(img, max_w, max_h):
     w, h = img.size
-    scale = min(1600 / w, 900 / h)
-    img = img.resize((int(w * scale), int(h * scale)), Image.LANCZOS)
-
-    buf = BytesIO()
-    img.save(buf, format="PNG")
-    b64 = base64.b64encode(buf.getvalue()).decode()
-
-    return f"<img class='vacr-img' src='data:image/png;base64,{b64}' />"
+    scale = min(max_w / w, max_h / h)
+    return img.resize((int(w * scale), int(h * scale)), Image.LANCZOS)
 
 # ---------------------------------------------------------
-# HOTLIST LOADING
+# LOAD HOTLIST FOLDERS
 # ---------------------------------------------------------
 def load_hotlist_folders():
     base = Path("hotlists")
     base.mkdir(exist_ok=True)
     return sorted([f.stem for f in base.glob("*.txt")])
 
+# ---------------------------------------------------------
+# LOAD HOTLIST DATA
+# ---------------------------------------------------------
 def load_hotlist(name):
-    categories = {}
     hotlist_path = Path("hotlists") / f"{name}.txt"
     img_dir = Path("imgs")
 
-    with hotlist_path.open("r", encoding="utf-8") as f:
+    categories = {}
+    with open(hotlist_path, "r", encoding="utf-8") as f:
         for line in f:
             if "|" not in line:
                 continue
             model, cat = line.strip().split("|", 1)
-            categories[model] = cat.capitalize()
+            categories[model.strip()] = cat.strip().capitalize()
 
     return categories, img_dir
 
 # ---------------------------------------------------------
-# IMAGE LOADING (ROBUST)
+# LOAD IMAGES (original working logic)
 # ---------------------------------------------------------
 def load_images(img_dir, models):
     images = {}
-    all_files = list(img_dir.glob("*.*"))  # flat fallback
-
-    for m in models:
-        safe = m.replace(" ", "_").replace("/", "_").lower()
-
-        # 1) Try per-model folder: imgs/<safe>/*
+    for model in models:
+        safe = model.replace(" ", "_").replace("/", "_").lower()
         folder = img_dir / safe
-        if folder.exists():
-            files = sorted(folder.glob("*.*"))
-        else:
-            # 2) Fallback: any file in imgs containing safe in name
-            files = [f for f in all_files if safe in f.stem.lower()]
 
-        images[m] = files
+        if folder.exists() and folder.is_dir():
+            images[model] = sorted(folder.glob("*.*"))
+        else:
+            images[model] = []  # original behavior
 
     return images
 
@@ -146,7 +125,6 @@ class Quiz:
         self.current_model = None
         self.current_image = None
         self.choices = []
-        self.phase_start = time.time()
 
         self.next_question()
 
@@ -156,8 +134,8 @@ class Quiz:
             return
 
         self.current_model = self.questions[self.index]
-        imgs = self.images.get(self.current_model, [])
-        self.current_image = random.choice(imgs) if imgs else None
+        img_list = self.images.get(self.current_model, [])
+        self.current_image = random.choice(img_list) if img_list else None
 
         cat = self.categories[self.current_model]
         others = [m for m in self.models if m != self.current_model]
@@ -178,7 +156,6 @@ class Quiz:
         random.shuffle(self.choices)
 
         self.state = "image"
-        self.phase_start = time.time()
 
     def process_answer(self, answer):
         if answer == self.current_model:
@@ -192,7 +169,7 @@ class Quiz:
 # MENU
 # ---------------------------------------------------------
 def screen_menu():
-    st.title("VACR QUIZ")
+    st.title("Marty's VACR Quiz")
 
     hotlists = load_hotlist_folders()
     chosen = st.selectbox("Hotlist", hotlists)
@@ -209,17 +186,19 @@ def screen_menu():
 
     models = [m for m, c in categories.items() if cat_states.get(c, False)]
     if not models:
-        st.error("No aircraft available with current category filters.")
+        st.error("No aircraft available with the selected categories.")
         return
 
     num_q = st.slider("Number of aircraft", 1, len(models), min(20, len(models)))
-    difficulty = st.selectbox("Difficulty", ["Easy", "Standard", "Warfighter", "AI"], index=1)
+    difficulty = st.selectbox("Difficulty", ["Easy", "Standard", "Warfighter", "AI"])
     num_choices = st.slider("Choices per question", 4, 6, 4)
 
     if st.button("Start Quiz"):
         st.session_state.screen = "quiz"
         st.session_state.quiz_settings = (chosen, num_q, difficulty, num_choices, cat_states)
         st.session_state.quiz = None
+        st.session_state.phase_start = None
+        st.session_state.last_state = None
         st.session_state.selected_choice = None
         st.rerun()
 
@@ -227,48 +206,58 @@ def screen_menu():
 # QUIZ
 # ---------------------------------------------------------
 def screen_quiz():
+    st_autorefresh(interval=1000, key="quiz_tick")
+
     if "quiz" not in st.session_state or st.session_state.quiz is None:
         chosen, num_q, difficulty, num_choices, cat_states = st.session_state.quiz_settings
         categories, img_dir = load_hotlist(chosen)
         models = [m for m, c in categories.items() if cat_states.get(c, False)]
         images = load_images(img_dir, models)
+
         st.session_state.quiz = Quiz(models, categories, images, num_q, difficulty, num_choices)
+        st.session_state.phase_start = None
+        st.session_state.last_state = None
         st.session_state.selected_choice = None
 
     quiz = st.session_state.quiz
-    now = time.time()
-    elapsed = now - quiz.phase_start
+
+    # Reset timer when state changes
+    if quiz.state != st.session_state.get("last_state"):
+        st.session_state.phase_start = None
+        st.session_state.last_state = quiz.state
 
     # IMAGE PHASE
     if quiz.state == "image":
-        remaining = quiz.image_time - int(elapsed)
-        if remaining < 0:
-            remaining = 0
-
-        st.markdown(f"<div class='timer-box'>{remaining}s</div>", unsafe_allow_html=True)
         st.subheader(f"{quiz.index + 1}/{quiz.num_q}: Look closely…")
 
         if quiz.current_image:
-            st.markdown(render_image(str(quiz.current_image)), unsafe_allow_html=True)
+            img = Image.open(quiz.current_image)
+            img = scale_vacr_pil(img, 1600, 900)
+            st.image(img)
         else:
             st.warning("No image found")
 
+        if st.session_state.phase_start is None:
+            st.session_state.phase_start = time.time()
+
+        elapsed = time.time() - st.session_state.phase_start
+        remaining = quiz.image_time - elapsed
+
+        st.markdown(f"<div class='timer-box'>{int(max(0, remaining))}s</div>", unsafe_allow_html=True)
+
         if remaining <= 0:
             quiz.state = "choices"
-            quiz.phase_start = time.time()
+            st.session_state.phase_start = None
             st.session_state.selected_choice = None
             st.rerun()
-
         return
 
     # CHOICE PHASE
     if quiz.state == "choices":
-        remaining = quiz.choice_time - int(elapsed)
-        if remaining < 0:
-            remaining = 0
-
-        st.markdown(f"<div class='timer-box'>{remaining}s</div>", unsafe_allow_html=True)
         st.subheader(f"{quiz.index + 1}/{quiz.num_q}: Which one was it?")
+
+        if st.session_state.phase_start is None:
+            st.session_state.phase_start = time.time()
 
         selected = st.session_state.get("selected_choice")
 
@@ -276,28 +265,38 @@ def screen_quiz():
         for i, choice in enumerate(quiz.choices):
             col = cols[i % 2]
             label = f"▶ {choice}" if choice == selected else choice
-            if col.button(label, key=f"choice_{quiz.index}_{i}"):
+
+            if col.button(label, key=f"choice_{i}"):
                 st.session_state.selected_choice = choice
                 st.rerun()
+
+        elapsed = time.time() - st.session_state.phase_start
+        remaining = quiz.choice_time - elapsed
+
+        st.markdown(f"<div class='timer-box'>{int(max(0, remaining))}s</div>", unsafe_allow_html=True)
 
         if remaining <= 0:
             quiz.process_answer(st.session_state.get("selected_choice"))
             st.session_state.selected_choice = None
+            st.session_state.phase_start = None
 
             if quiz.state == "finished":
                 st.session_state.screen = "results"
-
             st.rerun()
-
         return
+
+    # FINISHED
+    if quiz.state == "finished":
+        st.session_state.screen = "results"
+        st.rerun()
 
 # ---------------------------------------------------------
 # RESULTS
 # ---------------------------------------------------------
 def screen_results():
     quiz = st.session_state.quiz
-    st.header("Results")
 
+    st.header("Results")
     pct = (quiz.score / quiz.num_q) * 100
     st.subheader(f"Score: {quiz.score}/{quiz.num_q} ({pct:.1f}%)")
 
@@ -312,6 +311,8 @@ def screen_results():
     if st.button("Return to Menu"):
         st.session_state.screen = "menu"
         st.session_state.quiz = None
+        st.session_state.phase_start = None
+        st.session_state.last_state = None
         st.session_state.selected_choice = None
         st.rerun()
 
