@@ -246,16 +246,13 @@ def screen_quiz():
             img = Image.open(quiz.current_image)
             img = scale_vacr_pil(img)
 
-            # FINAL CENTERING FIX — center the container, not the widget
-            st.markdown(
-                "<div style='display:flex; justify-content:center; width:100%;'>",
-                unsafe_allow_html=True
-            )
-            st.image(img, use_column_width=False)
-            st.markdown("</div>", unsafe_allow_html=True)
-
+            # 3-column centering trick (the only stable method)
+            left, center, right = st.columns([1, 2, 1])
+            with center:
+                st.image(img, use_column_width=False)
         else:
             st.warning("No image found")
+
 
         if st.session_state.phase_start is None:
             st.session_state.phase_start = time.time()
