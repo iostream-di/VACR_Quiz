@@ -1,7 +1,3 @@
-# ======================================================================
-#  VACR QUIZ v7.8 — centered containers + zero hangs + stable scaling
-# ======================================================================
-
 import streamlit as st
 from streamlit_autorefresh import st_autorefresh
 from pathlib import Path
@@ -12,14 +8,13 @@ from PIL import Image
 # ---------------------------------------------------------
 # PAGE CONFIG
 # ---------------------------------------------------------
-st.set_page_config(page_title="Marty's VACR QUIZ", layout="wide", page_icon="✈️")
+st.set_page_config(page_title="VACR TEST MODE", layout="wide", page_icon="✈️")
 
 # ---------------------------------------------------------
-# GLOBAL CSS (padding + image fit)
+# GLOBAL CSS
 # ---------------------------------------------------------
 st.markdown("""
 <style>
-
 .block-container {
     padding-top: 0rem !important;
     padding-bottom: 0rem !important;
@@ -29,35 +24,36 @@ st.markdown("""
     flex-direction: column !important;
     align-items: center !important;
 }
-
 html, body, .stApp {
     height: 100%;
     overflow: hidden;
 }
-
-h1, h2, h3 {
-    padding-top: 1.5rem !important;
-    text-align: center !important;
-}
-
-/* Image still respects max-height */
 img {
     max-height: 80vh !important;
     object-fit: contain !important;
 }
-
 button:focus {
     outline: none !important;
     box-shadow: none !important;
 }
-
 </style>
 """, unsafe_allow_html=True)
 
 # ---------------------------------------------------------
+# IMAGE PRELOAD
+# ---------------------------------------------------------
+def preload_image(path):
+    try:
+        img = Image.open(path)
+        img.load()
+        return img
+    except:
+        return None
+
+# ---------------------------------------------------------
 # IMAGE SCALING
 # ---------------------------------------------------------
-def scale_vacr_pil(img, max_w=1600, max_h=900):
+def scale_vacr_pil(img, max_w, max_h):
     w, h = img.size
     scale = min(max_w / w, max_h / h)
     return img.resize((int(w * scale), int(h * scale)), Image.LANCZOS)
@@ -68,7 +64,9 @@ def scale_vacr_pil(img, max_w=1600, max_h=900):
 def load_hotlist_folders():
     base = Path("hotlists")
     base.mkdir(exist_ok=True)
-    return sorted([f.stem for f in base.glob("*.txt")])
+    files = [f.stem for f in base.glob("*.txt")]
+    files.sort()
+    return files
 
 # ---------------------------------------------------------
 # LOAD HOTLIST DATA
@@ -82,8 +80,8 @@ def load_hotlist(name):
         for line in f:
             if "|" not in line:
                 continue
-            model, cat = line.strip().split("|", 1)
-            categories[model.strip()] = cat.strip().capitalize()
+            name, cat = line.strip().split("|", 1)
+            categories[name.strip()] = cat.strip().capitalize()
 
     return categories, img_dir
 
@@ -95,11 +93,7 @@ def load_images(img_dir, models):
     for model in models:
         safe = model.replace(" ", "_").replace("/", "_").lower()
         folder = img_dir / safe
-
-        if folder.exists() and folder.is_dir():
-            images[model] = sorted(folder.glob("*.*"))
-        else:
-            images[model] = []
+        images[model] = sorted(folder.glob("*.*")) if folder.exists() else []
     return images
 
 # ---------------------------------------------------------
@@ -147,8 +141,10 @@ class Quiz:
             return
 
         self.current_model = self.questions[self.index]
+
         img_list = self.images.get(self.current_model, [])
-        self.current_image = random.choice(img_list) if img_list else None
+        raw = random.choice(img_list) if img_list else None
+        self.current_image = preload_image(raw) if raw else None
 
         cat = self.categories[self.current_model]
         others = [m for m in self.models if m != self.current_model]
@@ -179,10 +175,10 @@ class Quiz:
         self.next_question()
 
 # ---------------------------------------------------------
-# MENU
+# SCREEN 1 — MENU
 # ---------------------------------------------------------
 def screen_menu():
-    st.title("Marty's VACR Quiz")
+    st.title("VACR TEST MODE")
 
     hotlists = load_hotlist_folders()
     chosen = st.selectbox("Hotlist", hotlists)
@@ -190,23 +186,25 @@ def screen_menu():
     categories, _ = load_hotlist(chosen)
     unique_cats = sorted(set(categories.values()))
 
-    st.subheader("Select Categories")
+    st.markdown("Select Categories")
     cat_states = {}
     cols = st.columns(3)
     for i, cat in enumerate(unique_cats):
         with cols[i % 3]:
             cat_states[cat] = st.toggle(cat, value=True)
 
-    models = [m for m, c in categories.items() if cat_states.get(c, False)]
-    if not models:
+    filtered_models = [m for m, c in categories.items() if cat_states.get(c, False)]
+    max_aircraft = len(filtered_models)
+
+    if max_aircraft == 0:
         st.error("No aircraft available with the selected categories.")
         return
 
-    num_q = st.slider("Number of aircraft", 1, len(models), min(20, len(models)))
+    num_q = st.slider("Number of aircraft", 1, max_aircraft, min(20, max_aircraft))
     difficulty = st.selectbox("Difficulty", ["Easy", "Standard", "Warfighter", "AI"], index=1)
     num_choices = st.slider("Choices per question", 4, 6, 4)
 
-    if st.button("Start Quiz"):
+    if st.button("Start Test"):
         st.session_state.screen = "quiz"
         st.session_state.quiz_settings = (chosen, num_q, difficulty, num_choices, cat_states)
         st.session_state.quiz = None
@@ -216,10 +214,10 @@ def screen_menu():
         st.rerun()
 
 # ---------------------------------------------------------
-# QUIZ
+# SCREEN 2 — QUIZ
 # ---------------------------------------------------------
 def screen_quiz():
-    st_autorefresh(interval=1000, key="quiz_tick")
+    st_autorefresh(interval=1000, key="tick")
 
     if "quiz" not in st.session_state or st.session_state.quiz is None:
         chosen, num_q, difficulty, num_choices, cat_states = st.session_state.quiz_settings
@@ -238,21 +236,20 @@ def screen_quiz():
         st.session_state.phase_start = None
         st.session_state.last_state = quiz.state
 
+    container = st.container()
+
     # IMAGE PHASE
     if quiz.state == "image":
-        st.subheader(f"{quiz.index + 1}/{quiz.num_q}: Look closely…")
+        with container:
+            st.subheader(f"{quiz.index + 1}/{quiz.num_q}: Look closely…")
 
-        if quiz.current_image:
-            img = Image.open(quiz.current_image)
-            img = scale_vacr_pil(img)
-
-            # 3-column centering trick (the only stable method)
-            left, center, right = st.columns([1, 2, 1])
-            with center:
-                st.image(img, use_column_width=False)
-        else:
-            st.warning("No image found")
-
+            if quiz.current_image:
+                img = scale_vacr_pil(quiz.current_image, 1600, 900)
+                left, center, right = st.columns([1, 2, 1])
+                with center:
+                    st.image(img, output_format="auto", use_container_width=True)
+            else:
+                st.warning("No image found")
 
         if st.session_state.phase_start is None:
             st.session_state.phase_start = time.time()
@@ -260,64 +257,52 @@ def screen_quiz():
         if time.time() - st.session_state.phase_start >= quiz.image_time:
             quiz.state = "choices"
             st.session_state.phase_start = None
-            st.session_state.selected_choice = None
-            st.rerun()
         return
 
     # CHOICE PHASE
     if quiz.state == "choices":
-        st.subheader(f"{quiz.index + 1}/{quiz.num_q}: Which one was it?")
+        with container:
+            st.subheader(f"{quiz.index + 1}/{quiz.num_q}: Which one was it?")
 
-        if st.session_state.phase_start is None:
-            st.session_state.phase_start = time.time()
+            if st.session_state.phase_start is None:
+                st.session_state.phase_start = time.time()
 
-        selected = st.session_state.get("selected_choice")
+            selected = st.session_state.get("selected_choice")
 
-        cols = st.columns(2)
-        for i, choice in enumerate(quiz.choices):
-            col = cols[i % 2]
-            label = f"▶ {choice}" if choice == selected else choice
+            cols = st.columns(2)
+            for i, choice in enumerate(quiz.choices):
+                col = cols[i % 2]
+                label = f"▶ {choice}" if choice == selected else choice
 
-            with col:
-                st.markdown(
-                    "<div style='display:flex; justify-content:center; width:100%;'>",
-                    unsafe_allow_html=True
-                )
-                if st.button(label, key=f"choice_{i}", use_container_width=True):
-                    st.session_state.selected_choice = choice
-                    st.rerun()
-                st.markdown("</div>", unsafe_allow_html=True)
+                with col:
+                    if st.button(label, key=f"choice_{i}", use_container_width=True):
+                        st.session_state.selected_choice = choice
 
         if time.time() - st.session_state.phase_start >= quiz.choice_time:
-            quiz.process_answer(st.session_state.get("selected_choice"))
+            final_answer = st.session_state.get("selected_choice")
+            quiz.process_answer(final_answer)
             st.session_state.selected_choice = None
             st.session_state.phase_start = None
 
             if quiz.state == "finished":
                 st.session_state.screen = "results"
-            st.rerun()
         return
 
-    # FINISHED
-    if quiz.state == "finished":
-        st.session_state.screen = "results"
-        st.rerun()
-
 # ---------------------------------------------------------
-# RESULTS
+# SCREEN 3 — RESULTS
 # ---------------------------------------------------------
 def screen_results():
     quiz = st.session_state.quiz
 
     st.header("Results")
-    pct = (quiz.score / quiz.num_q) * 100
-    st.subheader(f"Score: {quiz.score}/{quiz.num_q} ({pct:.1f}%)")
+    percent = (quiz.score / quiz.num_q) * 100
+    st.subheader(f"Score: {quiz.score}/{quiz.num_q} ({percent:.1f}%)")
 
     if quiz.wrong:
         st.subheader("Incorrect Answers")
         for correct, chosen in quiz.wrong:
-            chosen = chosen if chosen else "No answer"
-            st.write(f"❌ {chosen} → {correct}")
+            shown = chosen if chosen is not None else "No answer"
+            st.markdown(f"❌ **{shown} → {correct}**")
     else:
         st.success("Perfect score!")
 
@@ -330,7 +315,7 @@ def screen_results():
         st.rerun()
 
 # ---------------------------------------------------------
-# ROUTER
+# MAIN ROUTER
 # ---------------------------------------------------------
 if "screen" not in st.session_state:
     st.session_state.screen = "menu"
