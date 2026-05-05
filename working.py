@@ -33,6 +33,11 @@ from io import BytesIO
 st.set_page_config(page_title="Marty's VACR QUIZ", layout="wide", page_icon="✈️")
 
 # ---------------------------------------------------------
+# GLOBAL 1-SECOND AUTOREFRESH (SAFE)
+# ---------------------------------------------------------
+st_autorefresh(interval=1000, key="global_refresh")
+
+# ---------------------------------------------------------
 # GLOBAL CSS
 # ---------------------------------------------------------
 st.markdown("""
@@ -66,13 +71,6 @@ html, body, .stApp {
     display: block !important;
     margin-left: auto !important;
     margin-right: auto !important;
-}
-
-/* Hide the invisible text input */
-#hidden_input {
-    opacity: 0 !important;
-    height: 0px !important;
-    pointer-events: none !important;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -255,7 +253,7 @@ def screen_menu():
         st.rerun()
 
 # ---------------------------------------------------------
-# SCREEN 2 — QUIZ (single-use autorefresh per phase)
+# SCREEN 2 — QUIZ (global autorefresh + TM1)
 # ---------------------------------------------------------
 def screen_quiz():
     if "quiz" not in st.session_state or st.session_state.quiz is None:
@@ -269,13 +267,12 @@ def screen_quiz():
         st.session_state.selected_choice = None
 
     quiz = st.session_state.quiz
+    now = time.time()
+    elapsed = now - quiz.phase_start
 
     # IMAGE PHASE
     if quiz.state == "image":
         st.subheader(f"{quiz.index + 1}/{quiz.num_q}: Look closely…")
-
-        # Hidden widget to force autorefresh to fire
-        st.text_input(" ", key="hidden_input")
 
         if quiz.current_image:
             html = get_cached_image_html(str(quiz.current_image))
@@ -283,15 +280,6 @@ def screen_quiz():
         else:
             st.warning("No image found")
 
-        # Single-use autorefresh
-        st_autorefresh(
-            interval=int(quiz.image_time * 1000),
-            limit=1,
-            key=f"img_{quiz.index}"
-        )
-
-        # If autorefresh fired, switch phase
-        elapsed = time.time() - quiz.phase_start
         if elapsed >= quiz.image_time:
             quiz.state = "choices"
             quiz.phase_start = time.time()
@@ -314,15 +302,6 @@ def screen_quiz():
                 st.session_state.selected_choice = choice
                 st.rerun()
 
-        # Single-use autorefresh for timeout
-        st_autorefresh(
-            interval=int(quiz.choice_time * 1000),
-            limit=1,
-            key=f"choice_{quiz.index}"
-        )
-
-        # If autorefresh fired, process answer
-        elapsed = time.time() - quiz.phase_start
         if elapsed >= quiz.choice_time:
             final_answer = st.session_state.get("selected_choice")
             quiz.process_answer(final_answer)
