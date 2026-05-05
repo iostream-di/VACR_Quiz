@@ -1,10 +1,9 @@
 # ======================================================================
-#  VACR QUIZ v7.4 — dynamic scaling (JS) + original image loader + TM1
+#  VACR QUIZ v7.5 — CSS-based scaling + original image loader + TM1
 # ======================================================================
 
 import streamlit as st
 from streamlit_autorefresh import st_autorefresh
-from streamlit_javascript import st_javascript
 from pathlib import Path
 import random
 import time
@@ -15,46 +14,60 @@ from PIL import Image
 # ---------------------------------------------------------
 st.set_page_config(page_title="Marty's VACR QUIZ", layout="wide", page_icon="✈️")
 
-# Remove mobile browser auto-focus highlight
+# ---------------------------------------------------------
+# GLOBAL CSS (padding + image fit)
+# ---------------------------------------------------------
 st.markdown("""
-    <style>
-    button:focus {
-        outline: none !important;
-        box-shadow: none !important;
-    }
-    .vacr-img {
-        max-height: 80vh;
-        width: auto;
-        height: auto;
-        object-fit: contain;
-        display: block;
-        margin-left: auto;
-        margin-right: auto;
-    }
-    </style>
+<style>
+/* Reduce default Streamlit padding to give images more vertical room */
+.block-container {
+    padding-top: 0rem !important;
+    padding-bottom: 0rem !important;
+    padding-left: 1rem !important;
+    padding-right: 1rem !important;
+}
+
+header, .stApp {
+    padding-top: 0 !important;
+    margin-top: 0 !important;
+}
+
+/* Slight top padding for headings so they don't stick to the top edge */
+h1, h2, h3 {
+    padding-top: 1.5rem !important;
+}
+
+/* Prevent double scrollbars and keep content tight */
+html, body, .stApp {
+    height: 100%;
+    overflow: hidden;
+}
+
+/* VACR image: fit inside viewport without scrolling */
+.vacr-img {
+    max-height: 80vh !important;
+    width: auto !important;
+    height: auto !important;
+    object-fit: contain !important;
+    display: block !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+}
+
+/* Remove mobile browser auto-focus highlight on buttons */
+button:focus {
+    outline: none !important;
+    box-shadow: none !important;
+}
+</style>
 """, unsafe_allow_html=True)
 
 # ---------------------------------------------------------
-# DYNAMIC SCREEN SIZE (JS)
+# IMAGE SCALING (original logic, now paired with CSS)
 # ---------------------------------------------------------
-w = st_javascript("window.innerWidth")
-h = st_javascript("window.innerHeight")
-
-if w:
-    st.session_state.screen_w = w
-if h:
-    st.session_state.screen_h = h
-
-# Defaults if JS hasn't returned yet
-screen_w = int(st.session_state.get("screen_w", 1600))
-screen_h = int(st.session_state.get("screen_h", 900))
-
-# ---------------------------------------------------------
-# IMAGE SCALING (dynamic)
-# ---------------------------------------------------------
-def scale_vacr_pil(img):
+def scale_vacr_pil(img, max_w=1600, max_h=900):
     w, h = img.size
-    scale = min(screen_w / w, screen_h / h)
+    scale = min(max_w / w, max_h / h)
     return img.resize((int(w * scale), int(h * scale)), Image.LANCZOS)
 
 # ---------------------------------------------------------
@@ -94,8 +107,7 @@ def load_images(img_dir, models):
         if folder.exists() and folder.is_dir():
             images[model] = sorted(folder.glob("*.*"))
         else:
-            images[model] = []  # original behavior
-
+            images[model] = []
     return images
 
 # ---------------------------------------------------------
@@ -215,6 +227,7 @@ def screen_menu():
 # QUIZ
 # ---------------------------------------------------------
 def screen_quiz():
+    # 1s autorefresh drives TM1 timing + auto-advance
     st_autorefresh(interval=1000, key="quiz_tick")
 
     if "quiz" not in st.session_state or st.session_state.quiz is None:
@@ -241,8 +254,8 @@ def screen_quiz():
 
         if quiz.current_image:
             img = Image.open(quiz.current_image)
-            img = scale_vacr_pil(img)
-            st.image(img)
+            img = scale_vacr_pil(img)  # scaled, plus CSS max-height 80vh
+            st.image(img, use_column_width=False)
         else:
             st.warning("No image found")
 
