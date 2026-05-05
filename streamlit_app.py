@@ -203,7 +203,7 @@ class Quiz:
 # SCREEN 1 — MENU
 # ---------------------------------------------------------
 def screen_menu():
-    st.title("VACR TEST MODE")
+    st.title("Visual Aircraft Recognition (VACR) Quiz")
 
     hotlists = load_hotlist_folders()
     chosen = st.selectbox("Hotlist", hotlists)
