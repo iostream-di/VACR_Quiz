@@ -1,5 +1,5 @@
 # ======================================================================
-#  VACR QUIZ v7.2 — st_autorefresh + TM1 + original image loader
+#  VACR QUIZ v7.3 — original image loader + TM1 + autorefresh + no timer UI
 # ======================================================================
 
 import streamlit as st
@@ -20,13 +20,6 @@ st.markdown("""
     button:focus {
         outline: none !important;
         box-shadow: none !important;
-    }
-    .timer-box {
-        position: absolute;
-        top: 10px;
-        right: 20px;
-        font-size: 32px;
-        font-weight: 600;
     }
     .vacr-img {
         max-height: 80vh;
@@ -243,8 +236,6 @@ def screen_quiz():
         elapsed = time.time() - st.session_state.phase_start
         remaining = quiz.image_time - elapsed
 
-        st.markdown(f"<div class='timer-box'>{int(max(0, remaining))}s</div>", unsafe_allow_html=True)
-
         if remaining <= 0:
             quiz.state = "choices"
             st.session_state.phase_start = None
@@ -272,8 +263,6 @@ def screen_quiz():
 
         elapsed = time.time() - st.session_state.phase_start
         remaining = quiz.choice_time - elapsed
-
-        st.markdown(f"<div class='timer-box'>{int(max(0, remaining))}s</div>", unsafe_allow_html=True)
 
         if remaining <= 0:
             quiz.process_answer(st.session_state.get("selected_choice"))
