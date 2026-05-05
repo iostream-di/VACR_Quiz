@@ -292,7 +292,10 @@ def screen_quiz():
         if quiz.current_image:
             img = Image.open(quiz.current_image)
             img = scale_vacr_pil(img, 1600, 900)
-            st.image(img)
+            # 3-column centering trick (the only stable method)
+            left, center, right = st.columns([1, 2, 1])
+            with center:
+                st.image(img, use_column_width=False)
         else:
             st.warning("No image found")
 
