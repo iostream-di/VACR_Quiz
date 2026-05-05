@@ -304,7 +304,7 @@ def screen_quiz():
 
         elapsed = time.time() - st.session_state.phase_start
         remaining = quiz.image_time - elapsed
-        st.progress(max(0.0, remaining) / quiz.image_time)
+        #st.progress(max(0.0, remaining) / quiz.image_time)
 
         if remaining <= 0:
             quiz.state = "choices"
@@ -326,13 +326,19 @@ def screen_quiz():
             col = cols[i % 2]
             label = f"▶ {choice}" if choice == selected else choice
 
-            if col.button(label, key=f"choice_{i}"):
-                st.session_state.selected_choice = choice
-                st.rerun()
+            with col:
+                st.markdown(
+                    "<div style='display:flex; justify-content:center; width:100%;'>",
+                    unsafe_allow_html=True
+                )
+                if st.button(label, key=f"choice_{i}", use_container_width=True):
+                    st.session_state.selected_choice = choice
+                    st.rerun()
+                st.markdown("</div>", unsafe_allow_html=True)
 
         elapsed = time.time() - st.session_state.phase_start
         remaining = quiz.choice_time - elapsed
-        st.progress(max(0.0, remaining) / quiz.choice_time)
+        #st.progress(max(0.0, remaining) / quiz.choice_time)
 
         if remaining <= 0:
             final_answer = st.session_state.get("selected_choice")
