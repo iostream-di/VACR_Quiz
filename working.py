@@ -1,24 +1,5 @@
-# ======================================================================
-#  VACR (Visual Aircraft Recognition QUIZ) app
-#  Author: David "Marty" Martinez (dmartinez61789@gmail.com / david.a.martinez291.mil@army.mil)
-#  Purpose: Streamlit-based quiz app for students seeking to improve their VACR techniques.
-#
-#  Description:
-#     This application provides a clean interface for students to:
-#       • Test their profeciency identifying aircrafts
-#       • Improve their quick recognition skills with varied difficulty settings
-#       • Focus on specific category of aircrafts
-#       • (Future) AI-assisted comparison summary of wrong answers at the end of the quiz
-#
-#  Notes:
-#     • AI-assisted comparison summary only works with valid AI tokens.
-#     • Slow bandwidth users might observe the timer elapsing before the image fully loads.
-#
-#  Version: 2.3 (cached images + safe reruns + desktop fit)
-#  Last Updated: may 2026
-# ======================================================================
-
 import streamlit as st
+from streamlit_autorefresh import st_autorefresh
 from pathlib import Path
 import random
 import time
@@ -32,16 +13,24 @@ import base64
 st.set_page_config(page_title="VACR QUIZ", layout="wide", page_icon="✈️")
 
 # ---------------------------------------------------------
+# GLOBAL 1s AUTOREFRESH (LIGHTWEIGHT)
+# ---------------------------------------------------------
+st_autorefresh(interval=1000, key="global_refresh")
+
+# ---------------------------------------------------------
 # GLOBAL CSS
 # ---------------------------------------------------------
 st.markdown("""
 <style>
-.timer-box {
-    position: absolute;
-    top: 10px;
-    right: 20px;
-    font-size: 32px;
-    font-weight: 600;
+.block-container {
+    padding-top: 0rem !important;
+    padding-bottom: 0rem !important;
+    padding-left: 1rem !important;
+    padding-right: 1rem !important;
+}
+html, body, .stApp {
+    height: 100%;
+    overflow: hidden;
 }
 .vacr-img {
     max-height: 80vh;
@@ -52,18 +41,15 @@ st.markdown("""
     margin-left: auto;
     margin-right: auto;
 }
+.timer-box {
+    position: absolute;
+    top: 10px;
+    right: 20px;
+    font-size: 32px;
+    font-weight: 600;
+}
 </style>
 """, unsafe_allow_html=True)
-
-# ---------------------------------------------------------
-# TICK ENGINE (E1)
-# ---------------------------------------------------------
-if "tick" not in st.session_state:
-    st.session_state.tick = 0
-
-# This widget forces rerun because its value changes every run
-st.session_state.tick += 1
-st.number_input(" ", value=st.session_state.tick, key="tickbox")
 
 # ---------------------------------------------------------
 # IMAGE CACHE
@@ -82,7 +68,7 @@ def get_cached_image_html(path_str):
     return f"<img class='vacr-img' src='data:image/png;base64,{b64}' />"
 
 # ---------------------------------------------------------
-# LOAD HOTLISTS
+# HOTLIST LOADING
 # ---------------------------------------------------------
 def load_hotlist_folders():
     base = Path("hotlists")
@@ -91,19 +77,38 @@ def load_hotlist_folders():
 
 def load_hotlist(name):
     categories = {}
-    with open(Path("hotlists") / f"{name}.txt", "r", encoding="utf-8") as f:
-        for line in f:
-            if "|" in line:
-                model, cat = line.strip().split("|", 1)
-                categories[model] = cat.capitalize()
-    return categories, Path("imgs")
+    hotlist_path = Path("hotlists") / f"{name}.txt"
+    img_dir = Path("imgs")
 
+    with hotlist_path.open("r", encoding="utf-8") as f:
+        for line in f:
+            if "|" not in line:
+                continue
+            model, cat = line.strip().split("|", 1)
+            categories[model] = cat.capitalize()
+
+    return categories, img_dir
+
+# ---------------------------------------------------------
+# IMAGE LOADING (ROBUST)
+# ---------------------------------------------------------
 def load_images(img_dir, models):
     images = {}
+    all_files = list(img_dir.glob("*.*"))  # flat fallback
+
     for m in models:
         safe = m.replace(" ", "_").replace("/", "_").lower()
+
+        # 1) Try per-model folder: imgs/<safe>/*
         folder = img_dir / safe
-        images[m] = sorted(folder.glob("*.*")) if folder.exists() else []
+        if folder.exists():
+            files = sorted(folder.glob("*.*"))
+        else:
+            # 2) Fallback: any file in imgs containing safe in name
+            files = [f for f in all_files if safe in f.stem.lower()]
+
+        images[m] = files
+
     return images
 
 # ---------------------------------------------------------
@@ -161,13 +166,14 @@ class Quiz:
 
         wrong = []
         need = self.num_choices - 1
+
         take_same = min(len(same_cat), need)
         wrong.extend(random.sample(same_cat, take_same))
 
         remaining = need - take_same
         if remaining > 0:
             pool = [m for m in others if m not in wrong]
-            wrong.extend(random.sample(pool, remaining))
+            wrong.extend(random.sample(pool, min(len(pool), remaining)))
 
         self.choices = wrong + [self.current_model]
         random.shuffle(self.choices)
@@ -196,11 +202,15 @@ def screen_menu():
     unique_cats = sorted(set(categories.values()))
 
     st.subheader("Select Categories")
-    cat_states = {c: st.toggle(c, value=True) for c in unique_cats}
+    cat_states = {}
+    cols = st.columns(3)
+    for i, cat in enumerate(unique_cats):
+        with cols[i % 3]:
+            cat_states[cat] = st.toggle(cat, value=True)
 
-    models = [m for m, c in categories.items() if cat_states[c]]
+    models = [m for m, c in categories.items() if cat_states.get(c, False)]
     if not models:
-        st.error("No aircraft available.")
+        st.error("No aircraft available with current category filters.")
         return
 
     num_q = st.slider("Number of aircraft", 1, len(models), min(20, len(models)))
@@ -221,7 +231,7 @@ def screen_quiz():
     if "quiz" not in st.session_state or st.session_state.quiz is None:
         chosen, num_q, difficulty, num_choices, cat_states = st.session_state.quiz_settings
         categories, img_dir = load_hotlist(chosen)
-        models = [m for m, c in categories.items() if cat_states[c]]
+        models = [m for m, c in categories.items() if cat_states.get(c, False)]
         images = load_images(img_dir, models)
         st.session_state.quiz = Quiz(models, categories, images, num_q, difficulty, num_choices)
         st.session_state.selected_choice = None
