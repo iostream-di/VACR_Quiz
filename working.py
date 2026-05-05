@@ -1,5 +1,5 @@
 # ======================================================================
-#  VACR QUIZ v7.5 — CSS-based scaling + original image loader + TM1
+#  VACR QUIZ v7.6 — centered images + centered buttons + clean CSS
 # ======================================================================
 
 import streamlit as st
@@ -8,6 +8,8 @@ from pathlib import Path
 import random
 import time
 from PIL import Image
+from io import BytesIO
+import base64
 
 # ---------------------------------------------------------
 # PAGE CONFIG
@@ -15,106 +17,72 @@ from PIL import Image
 st.set_page_config(page_title="Marty's VACR QUIZ", layout="wide", page_icon="✈️")
 
 # ---------------------------------------------------------
-# GLOBAL CSS (padding + image fit)
+# GLOBAL CSS (padding + centered layout + image fit)
 # ---------------------------------------------------------
 st.markdown("""
 <style>
-            
-/* ---------------------------------------------------------
-   1. CENTER IMAGES AND BUTTONS ONLY
-   --------------------------------------------------------- */
 
-/* Center images */
-img.vacr-img {
-    display: block !important;
-    margin-left: auto !important;
-    margin-right: auto !important;
-}
-
-/* Center buttons */
-div.stButton > button {
-    display: block !important;
-    margin-left: auto !important;
-    margin-right: auto !important;
-}
-
-/* ---------------------------------------------------------
-   2. DO NOT CENTER ALL WIDGET WRAPPERS (this collapses sliders)
-   Instead, center ONLY the specific wrappers for images/buttons.
-   --------------------------------------------------------- */
-
-/* Center the immediate wrapper around images/buttons */
-div[data-testid="column"] > div:has(img),
-div[data-testid="column"] > div:has(button) {
-    display: flex !important;
-    flex-direction: column !important;
-    align-items: center !important;
-    justify-content: center !important;
-}
-
-/* ---------------------------------------------------------
-   3. LEAVE SLIDERS, SELECTBOXES, TOGGLES, ETC. ALONE
-   --------------------------------------------------------- */
-
-/* Prevent collapsing of wide widgets */
-div[data-testid="column"] > div:has(.stSlider),
-div[data-testid="column"] > div:has(.stSelectbox),
-div[data-testid="column"] > div:has(.stToggle) {
-    display: block !important;
-    width: 100% !important;
-}
-
-
-/* Reduce default Streamlit padding to give images more vertical room */
 .block-container {
     padding-top: 0rem !important;
     padding-bottom: 0rem !important;
     padding-left: 1rem !important;
     padding-right: 1rem !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
 }
 
-header, .stApp {
-    padding-top: 0 !important;
-    margin-top: 0 !important;
-}
-
-/* Slight top padding for headings so they don't stick to the top edge */
-h1, h2, h3 {
-    padding-top: 1.5rem !important;
-}
-
-/* Prevent double scrollbars and keep content tight */
 html, body, .stApp {
     height: 100%;
     overflow: hidden;
 }
 
-/* VACR image: fit inside viewport without scrolling */
+h1, h2, h3 {
+    padding-top: 1.5rem !important;
+    text-align: center !important;
+}
+
+/* Center the HTML-rendered VACR image */
 .vacr-img {
     max-height: 80vh !important;
     width: auto !important;
     height: auto !important;
-    object-fit: contain !important;
     display: block !important;
     margin-left: auto !important;
     margin-right: auto !important;
+    object-fit: contain !important;
 }
 
-/* Remove mobile browser auto-focus highlight on buttons */
-button:focus {
-    outline: none !important;
-    box-shadow: none !important;
+/* Center buttons without collapsing sliders/selectboxes */
+div.stButton > button {
+    margin-left: auto !important;
+    margin-right: auto !important;
+    width: 100% !important;
 }
+
 </style>
 """, unsafe_allow_html=True)
 
 # ---------------------------------------------------------
-# IMAGE SCALING (original logic, now paired with CSS)
+# IMAGE SCALING
 # ---------------------------------------------------------
 def scale_vacr_pil(img, max_w=1600, max_h=900):
     w, h = img.size
     scale = min(max_w / w, max_h / h)
     return img.resize((int(w * scale), int(h * scale)), Image.LANCZOS)
+
+# ---------------------------------------------------------
+# HTML IMAGE RENDERER (centering fix)
+# ---------------------------------------------------------
+def render_vacr_image(path):
+    img = Image.open(path)
+    img = scale_vacr_pil(img)
+
+    buf = BytesIO()
+    img.save(buf, format="PNG")
+    b64 = base64.b64encode(buf.getvalue()).decode()
+
+    return f"<img class='vacr-img' src='data:image/png;base64,{b64}' />"
 
 # ---------------------------------------------------------
 # LOAD HOTLIST FOLDERS
@@ -142,7 +110,7 @@ def load_hotlist(name):
     return categories, img_dir
 
 # ---------------------------------------------------------
-# LOAD IMAGES (original working logic)
+# LOAD IMAGES
 # ---------------------------------------------------------
 def load_images(img_dir, models):
     images = {}
@@ -273,7 +241,6 @@ def screen_menu():
 # QUIZ
 # ---------------------------------------------------------
 def screen_quiz():
-    # 1s autorefresh drives TM1 timing + auto-advance
     st_autorefresh(interval=1000, key="quiz_tick")
 
     if "quiz" not in st.session_state or st.session_state.quiz is None:
@@ -289,7 +256,6 @@ def screen_quiz():
 
     quiz = st.session_state.quiz
 
-    # Reset timer when state changes
     if quiz.state != st.session_state.get("last_state"):
         st.session_state.phase_start = None
         st.session_state.last_state = quiz.state
@@ -299,19 +265,15 @@ def screen_quiz():
         st.subheader(f"{quiz.index + 1}/{quiz.num_q}: Look closely…")
 
         if quiz.current_image:
-            img = Image.open(quiz.current_image)
-            img = scale_vacr_pil(img)  # scaled, plus CSS max-height 80vh
-            st.image(img, use_column_width=False)
+            html = render_vacr_image(quiz.current_image)
+            st.markdown(html, unsafe_allow_html=True)
         else:
             st.warning("No image found")
 
         if st.session_state.phase_start is None:
             st.session_state.phase_start = time.time()
 
-        elapsed = time.time() - st.session_state.phase_start
-        remaining = quiz.image_time - elapsed
-
-        if remaining <= 0:
+        if time.time() - st.session_state.phase_start >= quiz.image_time:
             quiz.state = "choices"
             st.session_state.phase_start = None
             st.session_state.selected_choice = None
@@ -332,14 +294,11 @@ def screen_quiz():
             col = cols[i % 2]
             label = f"▶ {choice}" if choice == selected else choice
 
-            if col.button(label, key=f"choice_{i}"):
+            if col.button(label, key=f"choice_{i}", use_container_width=True):
                 st.session_state.selected_choice = choice
                 st.rerun()
 
-        elapsed = time.time() - st.session_state.phase_start
-        remaining = quiz.choice_time - elapsed
-
-        if remaining <= 0:
+        if time.time() - st.session_state.phase_start >= quiz.choice_time:
             quiz.process_answer(st.session_state.get("selected_choice"))
             st.session_state.selected_choice = None
             st.session_state.phase_start = None
