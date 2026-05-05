@@ -1,6 +1,6 @@
 # VACR_Quiz
 <h3>https://vacrquiz-pfnbpvqtgumek3nrbfkhql.streamlit.app</h3>
-<img src="vacr-quiz.png></img>
+<img src="vacr-quiz.png"></img>
 <br><br><br>
 
 <h2>Changelog</h2>
