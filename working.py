@@ -19,45 +19,49 @@ st.set_page_config(page_title="Marty's VACR QUIZ", layout="wide", page_icon="✈
 # ---------------------------------------------------------
 st.markdown("""
 <style>
-/* Center EVERYTHING inside Streamlit columns */
-div[data-testid="column"] > div {
-    display: flex !important;
-    flex-direction: column !important;
-    align-items: center !important;
-    justify-content: center !important;
-    width: 100% !important;
-}
+            
+/* ---------------------------------------------------------
+   1. CENTER IMAGES AND BUTTONS ONLY
+   --------------------------------------------------------- */
 
-/* Center all widgets inside columns */
-div[data-testid="column"] button,
-div[data-testid="column"] .stButton,
-div[data-testid="column"] .stSelectbox,
-div[data-testid="column"] .stSlider,
-div[data-testid="column"] .stToggle,
-div[data-testid="column"] img {
-    margin-left: auto !important;
-    margin-right: auto !important;
-}
-
-/* Center images globally (extra safety) */
+/* Center images */
 img.vacr-img {
     display: block !important;
     margin-left: auto !important;
     margin-right: auto !important;
 }
 
-
-/* Center images explicitly */
-img {
+/* Center buttons */
+div.stButton > button {
     display: block !important;
     margin-left: auto !important;
     margin-right: auto !important;
 }
 
-            
-/* Center subheaders and text */
-h1, h2, h3, p, div {
-    text-align: center !important;
+/* ---------------------------------------------------------
+   2. DO NOT CENTER ALL WIDGET WRAPPERS (this collapses sliders)
+   Instead, center ONLY the specific wrappers for images/buttons.
+   --------------------------------------------------------- */
+
+/* Center the immediate wrapper around images/buttons */
+div[data-testid="column"] > div:has(img),
+div[data-testid="column"] > div:has(button) {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+/* ---------------------------------------------------------
+   3. LEAVE SLIDERS, SELECTBOXES, TOGGLES, ETC. ALONE
+   --------------------------------------------------------- */
+
+/* Prevent collapsing of wide widgets */
+div[data-testid="column"] > div:has(.stSlider),
+div[data-testid="column"] > div:has(.stSelectbox),
+div[data-testid="column"] > div:has(.stToggle) {
+    display: block !important;
+    width: 100% !important;
 }
 
 
