@@ -46,37 +46,12 @@ img.vacr-img {
     margin-right: auto !important;
 }
 
-div[data-testid="column"] {
-    display: flex !important;
-    flex-direction: column !important;
-    align-items: center !important;
-    justify-content: center !important;
-}
-
-/* Center buttons inside columns */
-div[data-testid="column"] button {
-    margin-left: auto !important;
-    margin-right: auto !important;
-}
-
-.block-container {
-    display: flex !important;
-    flex-direction: column !important;
-    align-items: center !important;
-    justify-content: flex-start !important; /* or center if you want vertical centering */
-    text-align: center !important;
-}
 
 /* Center subheaders and text */
 h1, h2, h3, p, div {
     text-align: center !important;
 }
 
-/* Center the image container */
-.vacr-img {
-    margin-left: auto !important;
-    margin-right: auto !important;
-}
 
 /* Reduce default Streamlit padding to give images more vertical room */
 .block-container {
