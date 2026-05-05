@@ -67,14 +67,12 @@ html, body, .stApp {
     margin-right: auto !important;
 }
 
-/* Top-right countdown */
-.timer-box {
+/* Top-right timer */
+.timer-container {
     position: absolute;
     top: 10px;
     right: 20px;
-    font-size: 32px;
-    font-weight: 600;
-    color: #222;
+    width: 80px;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -280,7 +278,10 @@ def screen_quiz():
         if remaining < 0:
             remaining = 0
 
-        st.markdown(f"<div class='timer-box'>{remaining}s</div>", unsafe_allow_html=True)
+        with st.container():
+            st.markdown("<div class='timer-container'>", unsafe_allow_html=True)
+            st.metric(" ", f"{remaining}s")
+            st.markdown("</div>", unsafe_allow_html=True)
 
         st.subheader(f"{quiz.index + 1}/{quiz.num_q}: Look closely…")
 
@@ -304,7 +305,10 @@ def screen_quiz():
         if remaining < 0:
             remaining = 0
 
-        st.markdown(f"<div class='timer-box'>{remaining}s</div>", unsafe_allow_html=True)
+        with st.container():
+            st.markdown("<div class='timer-container'>", unsafe_allow_html=True)
+            st.metric(" ", f"{remaining}s")
+            st.markdown("</div>", unsafe_allow_html=True)
 
         st.subheader(f"{quiz.index + 1}/{quiz.num_q}: Which one was it?")
 
