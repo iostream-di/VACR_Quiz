@@ -19,7 +19,6 @@
 # ======================================================================
 
 import streamlit as st
-from streamlit_autorefresh import st_autorefresh
 from pathlib import Path
 import random
 import time
@@ -31,11 +30,6 @@ from io import BytesIO
 # PAGE CONFIG
 # ---------------------------------------------------------
 st.set_page_config(page_title="Marty's VACR QUIZ", layout="wide", page_icon="✈️")
-
-# ---------------------------------------------------------
-# GLOBAL 1-SECOND AUTOREFRESH (SAFE)
-# ---------------------------------------------------------
-st_autorefresh(interval=1000, key="global_refresh")
 
 # ---------------------------------------------------------
 # GLOBAL CSS
@@ -71,6 +65,16 @@ html, body, .stApp {
     display: block !important;
     margin-left: auto !important;
     margin-right: auto !important;
+}
+
+/* Top-right countdown */
+.timer-box {
+    position: absolute;
+    top: 10px;
+    right: 20px;
+    font-size: 32px;
+    font-weight: 600;
+    color: #222;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -253,7 +257,7 @@ def screen_menu():
         st.rerun()
 
 # ---------------------------------------------------------
-# SCREEN 2 — QUIZ (global autorefresh + TM1)
+# SCREEN 2 — QUIZ (widget-driven rerun)
 # ---------------------------------------------------------
 def screen_quiz():
     if "quiz" not in st.session_state or st.session_state.quiz is None:
@@ -272,6 +276,12 @@ def screen_quiz():
 
     # IMAGE PHASE
     if quiz.state == "image":
+        remaining = quiz.image_time - int(elapsed)
+        if remaining < 0:
+            remaining = 0
+
+        st.markdown(f"<div class='timer-box'>{remaining}s</div>", unsafe_allow_html=True)
+
         st.subheader(f"{quiz.index + 1}/{quiz.num_q}: Look closely…")
 
         if quiz.current_image:
@@ -280,7 +290,7 @@ def screen_quiz():
         else:
             st.warning("No image found")
 
-        if elapsed >= quiz.image_time:
+        if remaining <= 0:
             quiz.state = "choices"
             quiz.phase_start = time.time()
             st.session_state.selected_choice = None
@@ -290,6 +300,12 @@ def screen_quiz():
 
     # CHOICES PHASE
     if quiz.state == "choices":
+        remaining = quiz.choice_time - int(elapsed)
+        if remaining < 0:
+            remaining = 0
+
+        st.markdown(f"<div class='timer-box'>{remaining}s</div>", unsafe_allow_html=True)
+
         st.subheader(f"{quiz.index + 1}/{quiz.num_q}: Which one was it?")
 
         selected = st.session_state.get("selected_choice")
@@ -302,7 +318,7 @@ def screen_quiz():
                 st.session_state.selected_choice = choice
                 st.rerun()
 
-        if elapsed >= quiz.choice_time:
+        if remaining <= 0:
             final_answer = st.session_state.get("selected_choice")
             quiz.process_answer(final_answer)
             st.session_state.selected_choice = None
