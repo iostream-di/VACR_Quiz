@@ -52,10 +52,9 @@ html, body, .stApp {
 """, unsafe_allow_html=True)
 
 # ---------------------------------------------------------
-# IMAGE CACHE
+# IMAGE RENDERER (NO CACHING)
 # ---------------------------------------------------------
-@st.cache_resource
-def get_cached_image_html(path_str):
+def render_image(path_str):
     img = Image.open(path_str)
     w, h = img.size
     scale = min(1600 / w, 900 / h)
@@ -250,7 +249,7 @@ def screen_quiz():
         st.subheader(f"{quiz.index + 1}/{quiz.num_q}: Look closely…")
 
         if quiz.current_image:
-            st.markdown(get_cached_image_html(str(quiz.current_image)), unsafe_allow_html=True)
+            st.markdown(render_image(str(quiz.current_image)), unsafe_allow_html=True)
         else:
             st.warning("No image found")
 
