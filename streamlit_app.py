@@ -18,7 +18,6 @@
 #  Last Updated: May 2026
 # ======================================================================
 
-
 import streamlit as st
 from streamlit_autorefresh import st_autorefresh
 from pathlib import Path
@@ -29,11 +28,14 @@ from PIL import Image
 # ---------------------------------------------------------
 # PAGE CONFIG
 # ---------------------------------------------------------
+# Sets the browser tab title, layout, and icon.
 st.set_page_config(page_title="VACR QUIZ", layout="wide", page_icon="✈️")
 
 # ---------------------------------------------------------
 # GLOBAL CSS
 # ---------------------------------------------------------
+# Overrides Streamlit's default spacing and layout to create
+# a clean, centered, minimal interface suitable for fast-paced quizzes.
 st.markdown("""
 <style>
 .block-container {
@@ -57,7 +59,7 @@ button:focus {
     outline: none !important;
     box-shadow: none !important;
 }
-    h1, h2, h3 {
+h1, h2, h3 {
     padding-top: 2.0rem !important;
     text-align: center !important;
 }
@@ -68,9 +70,13 @@ button:focus {
 # IMAGE PRELOAD
 # ---------------------------------------------------------
 def preload_image(path):
+    """
+    Loads an image file into memory immediately.
+    This prevents slow-loading images from delaying the quiz timer.
+    """
     try:
         img = Image.open(path)
-        img.load()
+        img.load()  # forces full load
         return img
     except:
         return None
@@ -79,6 +85,10 @@ def preload_image(path):
 # IMAGE SCALING
 # ---------------------------------------------------------
 def scale_vacr_pil(img, max_w, max_h):
+    """
+    Scales an image proportionally to fit within max_w × max_h.
+    Uses high-quality LANCZOS resampling.
+    """
     w, h = img.size
     scale = min(max_w / w, max_h / h)
     return img.resize((int(w * scale), int(h * scale)), Image.LANCZOS)
@@ -87,6 +97,10 @@ def scale_vacr_pil(img, max_w, max_h):
 # LOAD HOTLIST FOLDERS
 # ---------------------------------------------------------
 def load_hotlist_folders():
+    """
+    Returns a sorted list of all .txt hotlist files in /hotlists.
+    Each hotlist defines aircraft models and categories.
+    """
     base = Path("hotlists")
     base.mkdir(exist_ok=True)
     files = [f.stem for f in base.glob("*.txt")]
@@ -97,6 +111,11 @@ def load_hotlist_folders():
 # LOAD HOTLIST DATA
 # ---------------------------------------------------------
 def load_hotlist(name):
+    """
+    Loads a hotlist file and returns:
+        • categories: dict mapping aircraft → category
+        • img_dir: base directory where aircraft images are stored
+    """
     hotlist_path = Path("hotlists") / f"{name}.txt"
     img_dir = Path("imgs")
 
@@ -114,6 +133,10 @@ def load_hotlist(name):
 # LOAD IMAGES
 # ---------------------------------------------------------
 def load_images(img_dir, models):
+    """
+    For each aircraft model, loads all image file paths from its folder.
+    Folder names are sanitized versions of the model name.
+    """
     images = {}
     for model in models:
         safe = model.replace(" ", "_").replace("/", "_").lower()
@@ -125,6 +148,14 @@ def load_images(img_dir, models):
 # QUIZ ENGINE
 # ---------------------------------------------------------
 class Quiz:
+    """
+    Core quiz logic:
+        • Selects questions
+        • Loads images
+        • Generates choices
+        • Tracks score and wrong answers
+        • Manages state transitions (image → choices → next)
+    """
     def __init__(self, models, categories, images, num_q, difficulty, num_choices):
         self.models = models
         self.categories = categories
@@ -132,6 +163,7 @@ class Quiz:
         self.num_q = num_q
         self.num_choices = num_choices
 
+        # Difficulty determines timing
         if difficulty == "Easy":
             self.image_time = 10
             self.choice_time = 15
@@ -145,14 +177,16 @@ class Quiz:
             self.image_time = 5
             self.choice_time = 5
 
+        # Randomly select aircraft for the quiz
         self.questions = random.sample(models, min(num_q, len(models)))
-        while len(self.questions) < num_q:
+        while len(self.questions) < num_q and len(models) > 0:
             self.questions += random.sample(models, min(len(models), num_q - len(self.questions)))
 
+        # Quiz state
         self.index = 0
         self.score = 0
         self.wrong = []
-        self.state = "image"
+        self.state = "image"  # phases: image → choices → finished
 
         self.current_model = None
         self.current_image = None
@@ -161,16 +195,21 @@ class Quiz:
         self.next_question()
 
     def next_question(self):
+        """
+        Loads the next aircraft, image, and multiple-choice options.
+        """
         if self.index >= self.num_q:
             self.state = "finished"
             return
 
         self.current_model = self.questions[self.index]
 
+        # Pick a random image for this aircraft
         img_list = self.images.get(self.current_model, [])
         raw = random.choice(img_list) if img_list else None
         self.current_image = preload_image(raw) if raw else None
 
+        # Build multiple-choice options
         cat = self.categories[self.current_model]
         others = [m for m in self.models if m != self.current_model]
         same_cat = [m for m in others if self.categories[m] == cat]
@@ -178,20 +217,28 @@ class Quiz:
         wrong = []
         need = self.num_choices - 1
 
+        # Prefer wrong answers from the same category
         take_same = min(len(same_cat), need)
-        wrong.extend(random.sample(same_cat, take_same))
+        if take_same > 0:
+            wrong.extend(random.sample(same_cat, take_same))
 
+        # Fill remaining slots with random aircraft
         remaining = need - take_same
         if remaining > 0:
             pool = [m for m in others if m not in wrong]
-            wrong.extend(random.sample(pool, min(len(pool), remaining)))
+            if pool:
+                wrong.extend(random.sample(pool, min(len(pool), remaining)))
 
+        # Shuffle choices
         self.choices = wrong + [self.current_model]
         random.shuffle(self.choices)
 
         self.state = "image"
 
     def process_answer(self, answer):
+        """
+        Records whether the user was correct and advances the quiz.
+        """
         if answer == self.current_model:
             self.score += 1
         else:
@@ -203,14 +250,27 @@ class Quiz:
 # SCREEN 1 — MENU
 # ---------------------------------------------------------
 def screen_menu():
+    """
+    Main menu where the user selects:
+        • Hotlist
+        • Categories
+        • Number of questions
+        • Difficulty
+        • Number of choices
+    """
     st.title("Visual Aircraft Recognition (VACR) Quiz")
 
     hotlists = load_hotlist_folders()
+    if not hotlists:
+        st.error("No hotlists found in the 'hotlists' folder.")
+        return
+
     chosen = st.selectbox("Hotlist", hotlists)
 
     categories, _ = load_hotlist(chosen)
     unique_cats = sorted(set(categories.values()))
 
+    # Category toggles
     st.markdown("Select Categories")
     cat_states = {}
     cols = st.columns(3)
@@ -218,6 +278,7 @@ def screen_menu():
         with cols[i % 3]:
             cat_states[cat] = st.toggle(cat, value=True)
 
+    # Filter aircraft by selected categories
     filtered_models = [m for m, c in categories.items() if cat_states.get(c, False)]
     max_aircraft = len(filtered_models)
 
@@ -225,10 +286,12 @@ def screen_menu():
         st.error("No aircraft available with the selected categories.")
         return
 
+    # Quiz settings
     num_q = st.slider("Number of aircraft", 1, max_aircraft, min(20, max_aircraft))
     difficulty = st.selectbox("Difficulty", ["Easy", "Standard", "Warfighter", "AI"], index=1)
     num_choices = st.slider("Choices per question", 4, 6, 4)
 
+    # Start button
     if st.button("Start Test"):
         st.session_state.screen = "quiz"
         st.session_state.quiz_settings = (chosen, num_q, difficulty, num_choices, cat_states)
@@ -239,11 +302,16 @@ def screen_menu():
         st.rerun()
 
 # ---------------------------------------------------------
-# SCREEN 2 — QUIZ
+# SCREEN 2 — QUIZ (stable layout)
 # ---------------------------------------------------------
 def screen_quiz():
+    """
+    Runs the quiz using a stable layout container.
+    The page auto-refreshes every second to update timers.
+    """
     st_autorefresh(interval=1000, key="tick")
 
+    # Initialize quiz if needed
     if "quiz" not in st.session_state or st.session_state.quiz is None:
         chosen, num_q, difficulty, num_choices, cat_states = st.session_state.quiz_settings
         categories, img_dir = load_hotlist(chosen)
@@ -257,36 +325,42 @@ def screen_quiz():
 
     quiz = st.session_state.quiz
 
+    # Reset timer when phase changes
     if quiz.state != st.session_state.get("last_state"):
         st.session_state.phase_start = None
         st.session_state.last_state = quiz.state
 
-    container = st.container()
+    # Persistent container prevents layout flicker
+    ui = st.container()
 
+    # -----------------------------
     # IMAGE PHASE
+    # -----------------------------
     if quiz.state == "image":
-        with container:
+        with ui:
             st.subheader(f"{quiz.index + 1}/{quiz.num_q}: Look closely…")
 
             if quiz.current_image:
                 img = scale_vacr_pil(quiz.current_image, 1600, 900)
-                left, center, right = st.columns([1, 2, 1])
-                with center:
-                    st.image(img, output_format="auto", use_container_width=True)
+                st.image(img, output_format="auto", use_container_width=True)
             else:
                 st.warning("No image found")
 
+        # Start timer
         if st.session_state.phase_start is None:
             st.session_state.phase_start = time.time()
 
+        # Move to choice phase when time expires
         if time.time() - st.session_state.phase_start >= quiz.image_time:
             quiz.state = "choices"
             st.session_state.phase_start = None
         return
 
+    # -----------------------------
     # CHOICE PHASE
+    # -----------------------------
     if quiz.state == "choices":
-        with container:
+        with ui:
             st.subheader(f"{quiz.index + 1}/{quiz.num_q}: Which one was it?")
 
             if st.session_state.phase_start is None:
@@ -294,18 +368,20 @@ def screen_quiz():
 
             selected = st.session_state.get("selected_choice")
 
-            cols = st.columns(2)
+            # Stable 2-column layout
+            col1, col2 = st.columns(2)
             for i, choice in enumerate(quiz.choices):
-                col = cols[i % 2]
+                col = col1 if i % 2 == 0 else col2
                 label = f"▶ {choice}" if choice == selected else choice
 
                 with col:
+                    # Instant click response
                     if st.button(label, key=f"choice_{i}", use_container_width=True):
                         st.session_state.selected_choice = choice
-                        st.session_state.phase_start = time.time()  # ensures timer doesn't skip
-                        st.rerun()  # <<< INSTANT CLICK RESPONSE
+                        st.session_state.phase_start = time.time()
+                        st.rerun()
 
-
+        # When timer expires, lock in answer
         if time.time() - st.session_state.phase_start >= quiz.choice_time:
             final_answer = st.session_state.get("selected_choice")
             quiz.process_answer(final_answer)
@@ -320,10 +396,13 @@ def screen_quiz():
 # SCREEN 3 — RESULTS
 # ---------------------------------------------------------
 def screen_results():
+    """
+    Shows final score and list of incorrect answers.
+    """
     quiz = st.session_state.quiz
 
     st.header("Results")
-    percent = (quiz.score / quiz.num_q) * 100
+    percent = (quiz.score / quiz.num_q) * 100 if quiz.num_q > 0 else 0
     st.subheader(f"Score: {quiz.score}/{quiz.num_q} ({percent:.1f}%)")
 
     if quiz.wrong:
@@ -345,6 +424,7 @@ def screen_results():
 # ---------------------------------------------------------
 # MAIN ROUTER
 # ---------------------------------------------------------
+# Controls which screen is displayed.
 if "screen" not in st.session_state:
     st.session_state.screen = "menu"
 
