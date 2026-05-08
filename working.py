@@ -1,3 +1,9 @@
+# ======================================================================
+#  VACR (Visual Aircraft Recognition QUIZ) app
+#  Author: David "Marty" Martinez
+#  Version: 2.3 - Stable layout, instant choices
+# ======================================================================
+
 import streamlit as st
 from streamlit_autorefresh import st_autorefresh
 from pathlib import Path
@@ -8,7 +14,7 @@ from PIL import Image
 # ---------------------------------------------------------
 # PAGE CONFIG
 # ---------------------------------------------------------
-st.set_page_config(page_title="VACR TEST MODE", layout="wide", page_icon="✈️")
+st.set_page_config(page_title="VACR QUIZ", layout="wide", page_icon="✈️")
 
 # ---------------------------------------------------------
 # GLOBAL CSS
@@ -36,7 +42,7 @@ button:focus {
     outline: none !important;
     box-shadow: none !important;
 }
-    h1, h2, h3 {
+h1, h2, h3 {
     padding-top: 2.0rem !important;
     text-align: center !important;
 }
@@ -125,7 +131,7 @@ class Quiz:
             self.choice_time = 5
 
         self.questions = random.sample(models, min(num_q, len(models)))
-        while len(self.questions) < num_q:
+        while len(self.questions) < num_q and len(models) > 0:
             self.questions += random.sample(models, min(len(models), num_q - len(self.questions)))
 
         self.index = 0
@@ -158,12 +164,14 @@ class Quiz:
         need = self.num_choices - 1
 
         take_same = min(len(same_cat), need)
-        wrong.extend(random.sample(same_cat, take_same))
+        if take_same > 0:
+            wrong.extend(random.sample(same_cat, take_same))
 
         remaining = need - take_same
         if remaining > 0:
             pool = [m for m in others if m not in wrong]
-            wrong.extend(random.sample(pool, min(len(pool), remaining)))
+            if pool:
+                wrong.extend(random.sample(pool, min(len(pool), remaining)))
 
         self.choices = wrong + [self.current_model]
         random.shuffle(self.choices)
@@ -182,9 +190,13 @@ class Quiz:
 # SCREEN 1 — MENU
 # ---------------------------------------------------------
 def screen_menu():
-    st.title("VACR TEST MODE")
+    st.title("Visual Aircraft Recognition (VACR) Quiz")
 
     hotlists = load_hotlist_folders()
+    if not hotlists:
+        st.error("No hotlists found in the 'hotlists' folder.")
+        return
+
     chosen = st.selectbox("Hotlist", hotlists)
 
     categories, _ = load_hotlist(chosen)
@@ -218,7 +230,7 @@ def screen_menu():
         st.rerun()
 
 # ---------------------------------------------------------
-# SCREEN 2 — QUIZ
+# SCREEN 2 — QUIZ (stable layout)
 # ---------------------------------------------------------
 def screen_quiz():
     st_autorefresh(interval=1000, key="tick")
@@ -240,18 +252,16 @@ def screen_quiz():
         st.session_state.phase_start = None
         st.session_state.last_state = quiz.state
 
-    container = st.container()
+    ui = st.container()  # persistent layout container
 
     # IMAGE PHASE
     if quiz.state == "image":
-        with container:
+        with ui:
             st.subheader(f"{quiz.index + 1}/{quiz.num_q}: Look closely…")
 
             if quiz.current_image:
                 img = scale_vacr_pil(quiz.current_image, 1600, 900)
-                left, center, right = st.columns([1, 2, 1])
-                with center:
-                    st.image(img, output_format="auto", use_container_width=True)
+                st.image(img, output_format="auto", use_container_width=True)
             else:
                 st.warning("No image found")
 
@@ -265,7 +275,7 @@ def screen_quiz():
 
     # CHOICE PHASE
     if quiz.state == "choices":
-        with container:
+        with ui:
             st.subheader(f"{quiz.index + 1}/{quiz.num_q}: Which one was it?")
 
             if st.session_state.phase_start is None:
@@ -273,14 +283,16 @@ def screen_quiz():
 
             selected = st.session_state.get("selected_choice")
 
-            cols = st.columns(2)
+            col1, col2 = st.columns(2)
             for i, choice in enumerate(quiz.choices):
-                col = cols[i % 2]
+                col = col1 if i % 2 == 0 else col2
                 label = f"▶ {choice}" if choice == selected else choice
 
                 with col:
                     if st.button(label, key=f"choice_{i}", use_container_width=True):
                         st.session_state.selected_choice = choice
+                        st.session_state.phase_start = time.time()
+                        st.rerun()
 
         if time.time() - st.session_state.phase_start >= quiz.choice_time:
             final_answer = st.session_state.get("selected_choice")
@@ -299,7 +311,7 @@ def screen_results():
     quiz = st.session_state.quiz
 
     st.header("Results")
-    percent = (quiz.score / quiz.num_q) * 100
+    percent = (quiz.score / quiz.num_q) * 100 if quiz.num_q > 0 else 0
     st.subheader(f"Score: {quiz.score}/{quiz.num_q} ({percent:.1f}%)")
 
     if quiz.wrong:
