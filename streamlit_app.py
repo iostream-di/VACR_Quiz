@@ -302,6 +302,9 @@ def screen_quiz():
                 with col:
                     if st.button(label, key=f"choice_{i}", use_container_width=True):
                         st.session_state.selected_choice = choice
+                        st.session_state.phase_start = time.time()  # ensures timer doesn't skip
+                        st.rerun()  # <<< INSTANT CLICK RESPONSE
+
 
         if time.time() - st.session_state.phase_start >= quiz.choice_time:
             final_answer = st.session_state.get("selected_choice")
