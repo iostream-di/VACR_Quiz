@@ -433,7 +433,7 @@ The VACR Quiz has a upgraded web-based successor hosted on MartyMayhem.com:
 - **[Sample Hotlist](https://martymayhem.com/downloads/sample_hotlist_1.zip)** — A sample hotlist that you can use to understand the editor and/or use the Trainer. (Note: NIPR networks will block this too.)
 
 These tools are the next evolution of this Streamlit app and give you far more control over how you train.
-For more information regarding these tools, **[contact me](contact@martymayhem.com)** and let me know.
+- **[Let me know](mailto:contact@martymayhem.com)** if you have any thoughts or need more information.
 """)
 
 
