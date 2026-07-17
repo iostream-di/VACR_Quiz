@@ -426,9 +426,9 @@ def screen_results():
 
     st.markdown("""
 **Looking for more features?**  
-The VACR Quiz has two upgraded web-based successors hosted on MartyMayhem.com:
+The VACR Quiz has a upgraded web-based successor hosted on MartyMayhem.com:
 
-- **[MVIT Editor](https://martymayhem.com/mvit/editor.html)** — Build fully customized hotlists, add your own aircraft, categories, and images.  
+- **[MVIT Editor](https://martymayhem.com/mvit/editor.html)** — Build fully customized hotlists, add your own aircraft, categories, and images. (Note: NIPR networks block export downloads)
 - **[MVIT Trainer](https://martymayhem.com/mvit/trainer.html)** — A faster, more advanced trainer with improved timing, better UI, and support for your custom hotlists.
 
 These tools are the next evolution of this Streamlit app and give you far more control over how you train.
